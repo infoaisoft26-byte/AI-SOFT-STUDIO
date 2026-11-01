@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const login = $("login"), dashboard = $("dashboard");
-let allEnquiries = [], toastTimer;
+let allEnquiries = [], summaryStats = null, toastTimer;
 async function api(url, options = {}) {
   const response = await fetch(url, { credentials:"same-origin", headers:{"Content-Type":"application/json",...(options.headers||{})}, ...options });
   const data = await response.json().catch(() => ({}));
@@ -26,8 +26,12 @@ function buildServiceFilter() {
   if (services.includes(current)) select.value = current;
 }
 function renderStats() {
-  $("total").textContent = allEnquiries.length;
-  ["new","contacted","qualified","closed","spam"].forEach(s => $(s === "new" ? "new-count" : s).textContent = allEnquiries.filter(x => x.status === s).length);
+  const byStatus = summaryStats && summaryStats.byStatus;
+  $("total").textContent = summaryStats ? summaryStats.total : allEnquiries.length;
+  ["new","contacted","qualified","closed","spam"].forEach(s => {
+    const id = s === "new" ? "new-count" : s;
+    $(id).textContent = byStatus ? Number(byStatus[s] || 0) : allEnquiries.filter(x => x.status === s).length;
+  });
 }
 function contactActions(item) {
   const email = String(item.email || ""), digits = String(item.phone || "").replace(/\D/g, "");
@@ -56,7 +60,12 @@ function renderRows() {
     const item = allEnquiries.find(x => String(x.id) === el.dataset.id), previous = item && item.status, next = el.value; el.disabled = true;
     try {
       await api("/api/admin/enquiries", {method:"PATCH",body:JSON.stringify({id:Number(el.dataset.id),status:next})});
-      if (item) item.status = next; renderStats(); renderRows(); showToast("Enquiry status updated.");
+      if (item) item.status = next;
+      if (summaryStats && summaryStats.byStatus) {
+        summaryStats.byStatus[previous] = Math.max(0, Number(summaryStats.byStatus[previous] || 0) - 1);
+        summaryStats.byStatus[next] = Number(summaryStats.byStatus[next] || 0) + 1;
+      }
+      renderStats(); renderRows(); showToast("Enquiry status updated.");
     } catch (error) { showToast(error.message, true); if (previous) el.value = previous; }
     finally { el.disabled = false; }
   }));
@@ -65,6 +74,7 @@ async function loadEnquiries() {
   $("refresh").disabled = true; $("rows").innerHTML = '<tr><td colspan="6" class="empty">Loading customer enquiries…</td></tr>';
   try {
     const result = await api("/api/admin/enquiries"); allEnquiries = Array.isArray(result.enquiries) ? result.enquiries : [];
+    summaryStats = result.stats || null;
     buildServiceFilter(); renderStats(); renderRows(); $("last-updated").textContent = "Updated " + new Date().toLocaleTimeString();
   } catch (error) { $("rows").innerHTML = '<tr><td colspan="6" class="empty error">' + escapeHtml(error.message) + '</td></tr>'; showToast(error.message, true); }
   finally { $("refresh").disabled = false; }
