@@ -32,9 +32,15 @@ export default async function handler(req, res) {
     await ensureSchema(sql);
 
     if (req.method === "GET") {
-      const rows = await sql`SELECT id,name,email,phone,service,budget,message,status,created_at,updated_at
-        FROM enquiries ORDER BY created_at DESC LIMIT 250`;
-      return res.status(200).json({ enquiries: rows });
+      const [rows, counts] = await Promise.all([
+        sql`SELECT id,name,email,phone,service,budget,message,status,created_at,updated_at
+          FROM enquiries ORDER BY created_at DESC LIMIT 250`,
+        sql`SELECT status, COUNT(*)::int AS count FROM enquiries GROUP BY status`,
+      ]);
+      const byStatus = { new: 0, contacted: 0, qualified: 0, closed: 0, spam: 0 };
+      for (const row of counts) byStatus[row.status] = Number(row.count);
+      const total = Object.values(byStatus).reduce((sum, count) => sum + count, 0);
+      return res.status(200).json({ enquiries: rows, stats: { total, byStatus } });
     }
 
     const id = Number(body.id);
