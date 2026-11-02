@@ -1,10 +1,13 @@
 import { neon } from "@neondatabase/serverless";
+
 let client;
+
 export function db() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not configured");
   client ||= neon(process.env.DATABASE_URL);
   return client;
 }
+
 export async function ensureSchema(sql) {
   await sql`CREATE TABLE IF NOT EXISTS enquiries (
     id BIGSERIAL PRIMARY KEY,
@@ -26,5 +29,11 @@ export async function ensureSchema(sql) {
     entity_type TEXT,
     entity_id BIGINT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`;
+  await sql`CREATE TABLE IF NOT EXISTS admin_login_attempts (
+    ip_hash TEXT PRIMARY KEY,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    window_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    blocked_until TIMESTAMPTZ
   )`;
 }
