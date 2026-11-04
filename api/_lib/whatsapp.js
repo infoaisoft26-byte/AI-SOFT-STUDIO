@@ -1,4 +1,4 @@
-const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_API_VERSION || "v23.0";
+const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_API_VERSION || "v26.0";
 
 export function whatsappConfigured() {
   return Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_VERIFY_TOKEN && process.env.META_APP_SECRET);
