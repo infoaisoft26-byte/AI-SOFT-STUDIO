@@ -13,7 +13,7 @@ export default async function handler(req,res){
   res.setHeader("Cache-Control","no-store");
   res.setHeader("X-Content-Type-Options","nosniff");
   if(!["GET","POST"].includes(req.method)){res.setHeader("Allow","GET, POST");return res.status(405).json({error:"Method not allowed"});}
-  const user=await requireCompanyUser(req,res,["owner"]);if(!user)return;
+  const user=await requireCompanyUser(req,res,req.method==="GET"?[]:["owner"]);if(!user)return;
   try{
     const sql=db();await ensureCompanySchema(sql);
     if(req.method==="GET"){
