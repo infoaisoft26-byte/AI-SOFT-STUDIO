@@ -4,7 +4,7 @@ import { ensureCompanySchema,requireCompanyUser,encryptCompanyToken } from "../.
 const version=process.env.WHATSAPP_GRAPH_API_VERSION||"v26.0";
 const idOk=v=>/^\d{5,30}$/.test(String(v||""));
 async function graph(path,token,init={}){
-  const response=await fetch(`https://graph.facebook.com/${version}/${path}`,{...init,headers:{Authorization:`Bearer ${token}`,...(init.headers||{})}});
+  const response=await fetch(`https://graph.facebook.com/${version}/${path}`,{...init,headers:{...(token?{Authorization:`Bearer ${token}`} : {}),...(init.headers||{})}});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error?.message||"Meta connection request failed.");
   return data;
