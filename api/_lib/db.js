@@ -21,6 +21,7 @@ export async function ensureSchema(sql) {
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`;
+  await sql`ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS whatsapp_opt_in BOOLEAN NOT NULL DEFAULT FALSE`;
   await sql`CREATE INDEX IF NOT EXISTS enquiries_created_at_idx ON enquiries (created_at DESC)`;
   await sql`CREATE TABLE IF NOT EXISTS admin_audit (
     id BIGSERIAL PRIMARY KEY,
