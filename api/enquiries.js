@@ -1,5 +1,5 @@
 import { db, ensureSchema } from "./_lib/db.js";
-import { sendText } from "./_lib/whatsapp.js";
+import { sendText, sendTemplate } from "./_lib/whatsapp.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -40,13 +40,21 @@ export default async function handler(req, res) {
       VALUES (${name},${email},${phone},${service},${budget},${message},${whatsappOptIn}) RETURNING id`;
     const adminPhone = String(process.env.WHATSAPP_ADMIN_PHONE || "").replace(/\\D/g, "");
     if (adminPhone) {
-      try { await sendText(adminPhone, `New website enquiry from ${name} (${phone || email}): ${service || "General"} — ${message.slice(0, 350)}`); }
-      catch (error) { console.error("Website enquiry WhatsApp alert failed:", error.message); }
+      try {
+        if (process.env.WHATSAPP_ADMIN_ALERT_TEMPLATE) {
+          await sendTemplate(adminPhone, process.env.WHATSAPP_ADMIN_ALERT_TEMPLATE, process.env.WHATSAPP_ENQUIRY_ACK_LANGUAGE || "en");
+        } else {
+          await sendText(adminPhone, `New website enquiry from ${name} (${phone || email}): ${service || "General"} — ${message.slice(0, 350)}`);
+        }
+      } catch (error) { console.error("Website enquiry WhatsApp alert failed:", error.message); }
     }
     if (whatsappOptIn && phone) {
-      const reply = process.env.WHATSAPP_AUTO_REPLY_TEXT || "Thanks for contacting AI SOFT STUDIO. We received your enquiry and our team will get back to you shortly.";
-      try { await sendText(phone, reply); }
-      catch (error) { console.error("Website enquiry WhatsApp acknowledgement failed:", error.message); }
+      if (process.env.WHATSAPP_ENQUIRY_ACK_TEMPLATE) {
+        try { await sendTemplate(phone, process.env.WHATSAPP_ENQUIRY_ACK_TEMPLATE, process.env.WHATSAPP_ENQUIRY_ACK_LANGUAGE || "en"); }
+        catch (error) { console.error("Website enquiry WhatsApp acknowledgement failed:", error.message); }
+      } else {
+        console.warn("Website enquiry WhatsApp consent recorded; configure an approved WHATSAPP_ENQUIRY_ACK_TEMPLATE to initiate the conversation.");
+      }
     }
     return res.status(201).json({ ok: true, id: rows[0].id, message: "Your enquiry has been received." });
   } catch (error) {
