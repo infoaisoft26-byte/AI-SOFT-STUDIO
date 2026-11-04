@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   const message = String(body.message || "").trim().slice(0, 4000);
   const whatsappOptIn = body.whatsappOptIn === true || body.whatsappOptIn === "true";
 
-  if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || message.length < 10) {
+  if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || message.length < 10 || (whatsappOptIn && phone.replace(/\D/g, "").length < 8)) {
     return res.status(400).json({ error: "Please enter your name, valid email and a message of at least 10 characters." });
   }
 
