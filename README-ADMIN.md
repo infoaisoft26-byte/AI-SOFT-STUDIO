@@ -50,3 +50,6 @@ Add the following encrypted environment variables to the AI SOFT STUDIO Vercel p
 - `WHATSAPP_GRAPH_API_VERSION`
 
 Do not put Meta tokens or app secrets in browser code, Git commits, or chat messages.
+
+- Website form WhatsApp acknowledgements are sent only when the visitor checks the WhatsApp consent box and an approved `WHATSAPP_ENQUIRY_ACK_TEMPLATE` is configured. Use a template that does not require variables unless sending components are configured.
+- For admin notifications outside an open 24-hour customer-service window, configure an approved `WHATSAPP_ADMIN_ALERT_TEMPLATE`; otherwise the integration attempts a regular text alert, which Meta may reject outside the window.
