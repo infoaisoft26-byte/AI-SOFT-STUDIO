@@ -43,9 +43,10 @@ $("leads").addEventListener("click",async e=>{
 $("campaign-form").addEventListener("submit",async e=>{
  e.preventDefault();const ids=[...document.querySelectorAll("#recipients input:checked")].map(x=>Number(x.value));
  const templateName=$("template").value,language=$("language").value.trim();
+ let components=[];try{components=JSON.parse($("components").value||"[]");if(!Array.isArray(components))throw new Error("Components must be a JSON array.");}catch(err){$("campaign-result").textContent="Invalid template components JSON: "+err.message;return;}
  if(!templateName||!ids.length){$("campaign-result").textContent="Choose an approved template and at least one opted-in contact.";return;}
  const button=$("send-campaign");button.disabled=true;$("campaign-result").textContent="Sending campaign…";
- try{const result=await api("/api/admin/whatsapp",{method:"POST",body:JSON.stringify({action:"campaign",name:new FormData(e.currentTarget).get("name"),templateName,language,contactIds:ids})});$("campaign-result").textContent="Campaign complete: "+result.sent+" sent, "+result.failed+" failed, "+result.skipped+" skipped.";toast("Campaign finished.");await load();}
+ try{const result=await api("/api/admin/whatsapp",{method:"POST",body:JSON.stringify({action:"campaign",name:new FormData(e.currentTarget).get("name"),templateName,language,contactIds:ids,components})});$("campaign-result").textContent="Campaign complete: "+result.sent+" sent, "+result.failed+" failed, "+result.skipped+" skipped.";toast("Campaign finished.");await load();}
  catch(err){$("campaign-result").textContent=err.message;}finally{button.disabled=false;}
 });
 async function start(){
