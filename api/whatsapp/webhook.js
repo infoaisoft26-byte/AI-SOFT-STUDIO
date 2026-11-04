@@ -62,12 +62,12 @@ Includes a tailored online store experience. Final scope can include product cat
 
 Please share your product type, approximate number of products and required payment methods.`;
   }
-  if (/\b(android app|mobile app|app development|application)\b/.test(text)) {
+  if (/\b(android app|mobile app|app development|application)\b/.test(text) || /^(app|android|mobile)$/.test(text)) {
     return `Android App Development starts at ₹79,999.
 
 Tell us your app idea, key features and whether you need customer login, payments or an admin panel. Our team can prepare a suitable scope and quotation.`;
   }
-  if (/\b(admin panel|dashboard|crm|business web app|web application)\b/.test(text)) {
+  if (/\b(admin panel|dashboard|crm|business web app|web application)\b/.test(text) || /^(admin|dashboard|crm)$/.test(text)) {
     return `Admin Panel development starts at ₹99,999. Business Web Apps start at ₹90,000.
 
 Share the workflow you want to manage, user roles and the reports or features you need. We will review the scope and suggest the right solution.`;
