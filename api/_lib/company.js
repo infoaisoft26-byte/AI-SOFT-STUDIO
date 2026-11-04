@@ -28,6 +28,12 @@ export async function ensureCompanySchema(sql = db()) {
     status TEXT NOT NULL DEFAULT 'not_connected' CHECK(status IN ('not_connected','pending','connected','error')),
     connected_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`;
+  await sql`CREATE TABLE IF NOT EXISTS studio_company_settings (
+    company_id BIGINT PRIMARY KEY REFERENCES studio_companies(id) ON DELETE CASCADE,
+    auto_reply_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    auto_reply_text TEXT NOT NULL DEFAULT 'Thanks for contacting us. We have received your message and our team will get back to you shortly.',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`;
   await sql`CREATE TABLE IF NOT EXISTS studio_company_contacts (
     id BIGSERIAL PRIMARY KEY, company_id BIGINT NOT NULL REFERENCES studio_companies(id) ON DELETE CASCADE,
     phone TEXT NOT NULL, name TEXT, lead_status TEXT NOT NULL DEFAULT 'new',
