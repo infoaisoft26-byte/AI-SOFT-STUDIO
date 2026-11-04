@@ -1,4 +1,5 @@
 import { db, ensureSchema } from "./_lib/db.js";
+import { sendText } from "./_lib/whatsapp.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -26,6 +27,7 @@ export default async function handler(req, res) {
   const service = String(body.service || "").trim().slice(0, 160);
   const budget = String(body.budget || "").trim().slice(0, 80);
   const message = String(body.message || "").trim().slice(0, 4000);
+  const whatsappOptIn = body.whatsappOptIn === true || body.whatsappOptIn === "true";
 
   if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || message.length < 10) {
     return res.status(400).json({ error: "Please enter your name, valid email and a message of at least 10 characters." });
