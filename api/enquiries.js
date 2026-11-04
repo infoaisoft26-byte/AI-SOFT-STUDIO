@@ -36,8 +36,18 @@ export default async function handler(req, res) {
   try {
     const sql = db();
     await ensureSchema(sql);
-    const rows = await sql`INSERT INTO enquiries (name,email,phone,service,budget,message)
-      VALUES (${name},${email},${phone},${service},${budget},${message}) RETURNING id`;
+    const rows = await sql`INSERT INTO enquiries (name,email,phone,service,budget,message,whatsapp_opt_in)
+      VALUES (${name},${email},${phone},${service},${budget},${message},${whatsappOptIn}) RETURNING id`;
+    const adminPhone = String(process.env.WHATSAPP_ADMIN_PHONE || "").replace(/\\D/g, "");
+    if (adminPhone) {
+      try { await sendText(adminPhone, `New website enquiry from ${name} (${phone || email}): ${service || "General"} — ${message.slice(0, 350)}`); }
+      catch (error) { console.error("Website enquiry WhatsApp alert failed:", error.message); }
+    }
+    if (whatsappOptIn && phone) {
+      const reply = process.env.WHATSAPP_AUTO_REPLY_TEXT || "Thanks for contacting AI SOFT STUDIO. We received your enquiry and our team will get back to you shortly.";
+      try { await sendText(phone, reply); }
+      catch (error) { console.error("Website enquiry WhatsApp acknowledgement failed:", error.message); }
+    }
     return res.status(201).json({ ok: true, id: rows[0].id, message: "Your enquiry has been received." });
   } catch (error) {
     console.error("Enquiry submission failed:", error.message);
