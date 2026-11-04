@@ -37,10 +37,10 @@ export default async function handler(req,res){
     const subscribed=await graph(wabaId+"/subscribed_apps",token,{method:"POST"});
     if(subscribed.success!==true)throw new Error("Meta did not confirm webhook subscription. Please retry the connection.");
     const encrypted=encryptCompanyToken(token);
-    await sql\`INSERT INTO studio_company_whatsapp(company_id,business_account_id,phone_number_id,display_phone,encrypted_access_token,status,connected_at,updated_at)
-      VALUES(\${user.company_id},\${wabaId},\${String(selected.id)},\${selected.display_phone_number||null},\${encrypted},'pending',NOW(),NOW())
+    await sql`INSERT INTO studio_company_whatsapp(company_id,business_account_id,phone_number_id,display_phone,encrypted_access_token,status,connected_at,updated_at)
+      VALUES(${user.company_id},${wabaId},${String(selected.id)},${selected.display_phone_number||null},${encrypted},'pending',NOW(),NOW())
       ON CONFLICT(company_id) DO UPDATE SET business_account_id=EXCLUDED.business_account_id,phone_number_id=EXCLUDED.phone_number_id,
-      display_phone=EXCLUDED.display_phone,encrypted_access_token=EXCLUDED.encrypted_access_token,status='pending',connected_at=NOW(),updated_at=NOW()\`;
+      display_phone=EXCLUDED.display_phone,encrypted_access_token=EXCLUDED.encrypted_access_token,status='pending',connected_at=NOW(),updated_at=NOW()`;
     let registered=false,registrationMessage="WhatsApp account linked. Enter the business number's 6-digit two-step verification PIN to finish activation.";
     if(/^\d{6}$/.test(pin)){
       try{
@@ -48,7 +48,7 @@ export default async function handler(req,res){
         if(registration.success===true||registration.success==="true"){registered=true;registrationMessage="WhatsApp number connected and activated successfully.";}
       }catch(error){registrationMessage="WhatsApp account is linked, but number activation needs attention: "+error.message+" You can retry the PIN below.";}
     }
-    if(registered)await sql\`UPDATE studio_company_whatsapp SET status='connected',updated_at=NOW() WHERE company_id=\${user.company_id}\`;
+    if(registered)await sql`UPDATE studio_company_whatsapp SET status='connected',updated_at=NOW() WHERE company_id=${user.company_id}`;
     await sql`INSERT INTO studio_company_settings(company_id) VALUES(${user.company_id}) ON CONFLICT(company_id) DO NOTHING`;
     await sql`INSERT INTO admin_audit(action,actor,entity_type,entity_id) VALUES('company.whatsapp.connected',${user.email},'company',${user.company_id})`;
     return res.status(200).json({ok:true,connection:{status:registered?"connected":"pending",displayPhone:selected.display_phone_number||null,verifiedName:selected.verified_name||null},message:registrationMessage});
