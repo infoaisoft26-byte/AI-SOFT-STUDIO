@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { db } from "./db.js";
 
 const COOKIE = "aisoft_company_session";
@@ -104,4 +104,24 @@ export function makeTempPassword() { return randomBytes(9).toString("base64url")
 export function makeSlug(name) {
   const base=String(name||"company").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,48)||"company";
   return base+"-"+randomBytes(3).toString("hex");
+}
+
+export function encryptCompanyToken(token) {
+  const secret=process.env.META_TOKEN_ENCRYPTION_KEY;
+  if(!secret || secret.length<32) throw new Error("WhatsApp token encryption is not configured.");
+  const key=createHash("sha256").update(secret).digest();
+  const iv=randomBytes(12);
+  const cipher=createCipheriv("aes-256-gcm",key,iv);
+  const encrypted=Buffer.concat([cipher.update(String(token),"utf8"),cipher.final()]);
+  return [iv.toString("base64url"),cipher.getAuthTag().toString("base64url"),encrypted.toString("base64url")].join(".");
+}
+export function decryptCompanyToken(value) {
+  const secret=process.env.META_TOKEN_ENCRYPTION_KEY;
+  if(!secret || secret.length<32) throw new Error("WhatsApp token encryption is not configured.");
+  const [iv,tag,data]=String(value||"").split(".");
+  if(!iv||!tag||!data) throw new Error("Stored WhatsApp connection is invalid.");
+  const key=createHash("sha256").update(secret).digest();
+  const decipher=createDecipheriv("aes-256-gcm",key,Buffer.from(iv,"base64url"));
+  decipher.setAuthTag(Buffer.from(tag,"base64url"));
+  return Buffer.concat([decipher.update(Buffer.from(data,"base64url")),decipher.final()]).toString("utf8");
 }
