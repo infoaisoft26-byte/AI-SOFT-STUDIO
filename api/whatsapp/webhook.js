@@ -64,6 +64,8 @@ export default async function handler(req,res){
     const value=change.value||{};
     const companyHandled=await processCompanyEntry(sql,entry,change);
     if(companyHandled)continue;
+    const inboundPhoneId=String(value.metadata?.phone_number_id||"");
+    if(inboundPhoneId && inboundPhoneId!==String(process.env.WHATSAPP_PHONE_NUMBER_ID||"")) continue;
     for(const message of value.messages||[]){
      const phone=String(message.from||"").replace(/\D/g,"");if(!phone||!message.id)continue;
      const profile=(value.contacts||[]).find(x=>x.wa_id===message.from)?.profile?.name||null;
