@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { db } from "./db.js";
 
 const COOKIE = "aisoft_company_session";
@@ -21,7 +21,7 @@ export async function ensureCompanySchema(sql = db()) {
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(company_id,email)
   )`;
-  await sql`CREATE INDEX IF NOT EXISTS studio_company_users_email_idx ON studio_company_users(LOWER(email))`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS studio_company_users_email_global_idx ON studio_company_users(LOWER(email))`;
   await sql`CREATE TABLE IF NOT EXISTS studio_company_whatsapp (
     id BIGSERIAL PRIMARY KEY, company_id BIGINT NOT NULL UNIQUE REFERENCES studio_companies(id) ON DELETE CASCADE,
     business_account_id TEXT, phone_number_id TEXT, display_phone TEXT, encrypted_access_token TEXT,
