@@ -41,6 +41,7 @@ export default async function handler(req,res){
       VALUES(${user.company_id},${wabaId},${String(selected.id)},${selected.display_phone_number||null},${encrypted},'connected',NOW(),NOW())
       ON CONFLICT(company_id) DO UPDATE SET business_account_id=EXCLUDED.business_account_id,phone_number_id=EXCLUDED.phone_number_id,
       display_phone=EXCLUDED.display_phone,encrypted_access_token=EXCLUDED.encrypted_access_token,status='connected',connected_at=NOW(),updated_at=NOW()`;
+    await sql`INSERT INTO studio_company_settings(company_id) VALUES(${user.company_id}) ON CONFLICT(company_id) DO NOTHING`;
     await sql`INSERT INTO admin_audit(action,actor,entity_type,entity_id) VALUES('company.whatsapp.connected',${user.email},'company',${user.company_id})`;
     return res.status(200).json({ok:true,connection:{status:"connected",displayPhone:selected.display_phone_number||null,verifiedName:selected.verified_name||null},message:"WhatsApp Business account connected."});
   }catch(error){
