@@ -18,7 +18,7 @@ async function processCompanyEntry(sql,entry,change){
  const wa=rows[0];if(!wa)return false;
  const token=decryptCompanyToken(wa.encrypted_access_token);
  for(const message of value.messages||[]){
-  const phone=String(message.from||"").replace(/\\D/g,"");if(!phone||!message.id)continue;
+  const phone=String(message.from||"").replace(/\D/g,"");if(!phone||!message.id)continue;
   const profile=(value.contacts||[]).find(x=>x.wa_id===message.from)?.profile?.name||null;
   const body=message.text?.body||(message.type==="button"?message.button?.text:null)||`[${message.type||"message"} message]`;
   const contactRows=await sql`INSERT INTO studio_company_contacts(company_id,phone,name,last_message_at)
@@ -32,7 +32,7 @@ async function processCompanyEntry(sql,entry,change){
   if(!inserted.length)continue;
   const settings=await sql`SELECT auto_reply_enabled,auto_reply_text FROM studio_company_settings WHERE company_id=${wa.company_id} LIMIT 1`;
   if(settings[0]?.auto_reply_enabled){
-   const reply=String(settings[0].auto_reply_text||"Thanks for contacting us. Our team will get back to you shortly.").replace(/\\{company\\}/g,wa.company_name);
+   const reply=String(settings[0].auto_reply_text||"Thanks for contacting us. Our team will get back to you shortly.").replace(/\{company\}/g,wa.company_name);
    try{const sent=await sendCompanyText(wa.phone_number_id,token,phone,reply);const wamid=sent.messages?.[0]?.id||null;
     await sql`INSERT INTO studio_company_messages(company_id,contact_id,wamid,direction,message_type,body,status)
      VALUES(${wa.company_id},${contact.id},${wamid},'outbound','text',${reply},'sent') ON CONFLICT(wamid) DO NOTHING`;
@@ -65,7 +65,7 @@ export default async function handler(req,res){
     const companyHandled=await processCompanyEntry(sql,entry,change);
     if(companyHandled)continue;
     for(const message of value.messages||[]){
-     const phone=String(message.from||"").replace(/\\D/g,"");if(!phone||!message.id)continue;
+     const phone=String(message.from||"").replace(/\D/g,"");if(!phone||!message.id)continue;
      const profile=(value.contacts||[]).find(x=>x.wa_id===message.from)?.profile?.name||null;
      const body=message.text?.body||(message.type==="button"?message.button?.text:null)||`[${message.type||"message"} message]`;
      const contactRows=await sql`INSERT INTO whatsapp_contacts(phone,name,last_message_at,updated_at) VALUES(${phone},${profile},NOW(),NOW())
@@ -79,7 +79,7 @@ export default async function handler(req,res){
       const reply=process.env.WHATSAPP_AUTO_REPLY_TEXT||"Thanks for contacting AI SOFT STUDIO. We received your message and our team will get back to you shortly.";
       try{await sendAndStore(sql,contact.id,phone,reply);}catch(error){console.error("WhatsApp auto-reply failed:",error.message);}
      }
-     const adminPhone=String(process.env.WHATSAPP_ADMIN_PHONE||"").replace(/\\D/g,"");
+     const adminPhone=String(process.env.WHATSAPP_ADMIN_PHONE||"").replace(/\D/g,"");
      if(adminPhone){const alert=`New WhatsApp enquiry from ${profile||phone}: ${String(body).slice(0,500)}`;try{await sendText(adminPhone,alert);}catch(error){console.error("WhatsApp admin alert failed:",error.message);}}
     }
     for(const status of value.statuses||[])await sql`UPDATE whatsapp_messages SET status=${status.status||"updated"} WHERE wamid=${status.id} AND direction='outbound'`;
