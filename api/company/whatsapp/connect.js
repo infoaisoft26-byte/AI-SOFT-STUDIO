@@ -2,7 +2,7 @@ import { db } from "../../_lib/db.js";
 import { ensureCompanySchema,requireCompanyUser,encryptCompanyToken } from "../../_lib/company.js";
 
 const version=process.env.WHATSAPP_GRAPH_API_VERSION||"v26.0";
-const idOk=v=>/^\\d{5,30}$/.test(String(v||""));
+const idOk=v=>/^\d{5,30}$/.test(String(v||""));
 async function graph(path,token,init={}){
   const response=await fetch(`https://graph.facebook.com/${version}/${path}`,{...init,headers:{Authorization:`Bearer ${token}`,...(init.headers||{})}});
   const data=await response.json().catch(()=>({}));
