@@ -49,7 +49,7 @@ const routes = new Map([
 export default async function handler(req, res) {
   const rawPath = req.query?.path;
   const pathParts = Array.isArray(rawPath) ? rawPath : [rawPath || ""];
-  const pathname = "/api/" + pathParts.join("/").replace(/^\\/+|\\/+$/g, "");
+  const pathname = "/api/" + pathParts.join("/").split("/").filter(Boolean).join("/");
   const route = routes.get(pathname);
   if (!route) return res.status(404).json({ error: "API route not found." });
   return route(req, res);
