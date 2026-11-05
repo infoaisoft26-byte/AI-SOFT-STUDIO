@@ -13,10 +13,10 @@ async function loadWhatsApp(){try{const d=await api("/api/company/whatsapp/conne
 async function loadMessages(){try{const d=await api("/api/company/whatsapp/messages");const contacts=d.contacts||[],messages=d.messages||[];$("reply-contact").innerHTML='<option value="">Choose a customer contact</option>'+contacts.map(c=>'<option value="'+c.id+'">'+esc(c.name||c.phone)+' · '+esc(c.phone)+'</option>').join("");$("company-messages").innerHTML=messages.map(m=>'<article class="message"><div><b>'+esc(m.name||m.phone||"Customer")+'</b><small>'+esc(m.direction)+' · '+esc(m.status||"received")+'</small></div><p>'+esc(m.body||"")+'</p><time>'+esc(new Date(m.created_at).toLocaleString())+'</time></article>').join("")||'<p class="muted">No customer messages yet. Messages will appear here after WhatsApp is connected.</p>';$("contacts-list").innerHTML=contacts.map(c=>'<tr><td><b>'+esc(c.name||"WhatsApp contact")+'</b></td><td>'+esc(c.phone)+'</td><td>'+esc(c.lead_status||"new")+'</td><td>'+esc(c.last_message_at?new Date(c.last_message_at).toLocaleString():"—")+'</td></tr>').join("")||'<tr><td colspan="4">No contacts yet.</td></tr>';$("contacts-count").textContent=contacts.length+" contacts";}catch(err){$("company-messages").textContent=err.message;}}
 let metaSdkPromise=null;
 function loadMetaSdk(appId){
- if(window.FB){window.FB.init({appId,cookie:true,xfbml:false,version:"v26.0"});return Promise.resolve(window.FB);}
+ if(window.FB){if(window.__studioMetaSdkAppId===appId)return Promise.resolve(window.FB);window.FB.init({appId,cookie:true,xfbml:false,version:"v26.0"});window.__studioMetaSdkAppId=appId;return Promise.resolve(window.FB);}
  if(metaSdkPromise)return metaSdkPromise;
  metaSdkPromise=new Promise((resolve,reject)=>{
-  window.fbAsyncInit=()=>{try{FB.init({appId,cookie:true,xfbml:false,version:"v26.0"});resolve(FB);}catch(error){metaSdkPromise=null;reject(error);}};
+  window.fbAsyncInit=()=>{try{FB.init({appId,cookie:true,xfbml:false,version:"v26.0"});window.__studioMetaSdkAppId=appId;resolve(FB);}catch(error){metaSdkPromise=null;reject(error);}};
   if(!document.querySelector('script[data-meta-sdk="true"]')){
    const script=document.createElement("script");script.src="https://connect.facebook.net/en_US/sdk.js";script.async=true;script.defer=true;script.dataset.metaSdk="true";script.onerror=()=>{metaSdkPromise=null;reject(Error("Meta's secure connection service could not load."));};document.head.appendChild(script);
   }
