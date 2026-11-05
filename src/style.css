@@ -182,3 +182,33 @@
 @keyframes modalFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 @media(max-width:700px){.build-modal{grid-template-columns:1fr;max-width:520px}.build-modal-visual{min-height:220px;max-height:240px}.modal-orbit-one{width:170px;height:170px}.modal-orbit-two{width:220px;height:115px}.modal-visual-icon{width:95px;height:95px}.modal-visual-icon svg{width:52px;height:52px}.modal-visual-code,.modal-visual-role{bottom:13px;font-size:6px}.build-modal-content{padding:28px 23px 23px}.build-modal-content h2{font-size:31px}.modal-price{margin:15px 0 18px;font-size:25px}.modal-deliverables{gap:10px;padding:14px 0 18px}.modal-deliverables li{font-size:9px}.modal-footer{align-items:flex-start;flex-direction:column}.modal-footer .button{width:100%;justify-content:center}}
 @media(prefers-reduced-motion:reduce){.modal-orbit-one,.modal-orbit-two,.modal-visual-icon,.modal-visual-icon:before,.modal-visual-icon:after{animation:none!important}}
+
+/* BUILD FLOOR — transparent service artwork and branded product visuals */
+.service-card-button{display:flex;flex-direction:column;align-items:flex-start}
+.service-card-button .service-art{align-self:stretch}
+.service-art{height:154px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:2px 0 18px;isolation:isolate;background:radial-gradient(ellipse at 50% 56%,#ff783a20 0%,#ff783a08 42%,transparent 72%)}
+.service-art:before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,#ffffff08 1px,transparent 1px),linear-gradient(45deg,#ffffff06 1px,transparent 1px);background-size:25px 25px;mask-image:radial-gradient(ellipse at center,#000 5%,transparent 78%);opacity:.6}
+.service-art-glow{position:absolute;width:112px;height:112px;border-radius:50%;background:#ff743b20;filter:blur(28px);transition:transform .5s,opacity .5s}
+.service-art-main{position:relative;z-index:2;width:88px;height:88px;display:grid;place-items:center;border:1px solid #ff98665c;border-radius:28px;color:#ffad83;background:linear-gradient(145deg,#ff8c4b22,#1b120e88);box-shadow:0 14px 40px #0008,inset 0 1px #ffffff24,0 0 38px #ff713022;transform:rotate(-7deg);transition:transform .55s cubic-bezier(.2,.8,.2,1),box-shadow .55s}
+.service-art-main img{width:53px;height:53px;object-fit:contain;filter:drop-shadow(0 0 14px #ff8b5b55)}
+.service-art-label{position:absolute;z-index:3;top:12px;left:12px;color:#c6a18e;font:7px 'DM Mono';letter-spacing:.17em}
+.service-art-chips{position:absolute;z-index:3;right:10px;bottom:12px;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.service-art-chips span{padding:5px 7px;border:1px solid #ffffff20;background:#090807a8;color:#d8b5a2;font:6px 'DM Mono';letter-spacing:.08em;backdrop-filter:blur(7px)}
+.service-art-orbit{position:absolute;border:1px solid #ff956c35;border-radius:50%;pointer-events:none}
+.service-art-orbit-a{width:132px;height:132px;transform:rotateX(65deg) rotate(-24deg)}
+.service-art-orbit-b{width:170px;height:70px;border-style:dashed;transform:rotate(-26deg)}
+.service-card-button:hover .service-art-main{transform:rotate(0) translateY(-7px) scale(1.08);box-shadow:0 20px 45px #0009,inset 0 1px #ffffff35,0 0 55px #ff71304a}
+.service-card-button:hover .service-art-glow{transform:scale(1.55);opacity:1}
+.service-card-button:hover .service-art-orbit-a{animation:serviceSpin 12s linear infinite}
+.service-art-large{height:100%;min-height:100%;margin:0;position:absolute;inset:0}
+.service-art-large .service-art-main{width:170px;height:170px;border-radius:44px;transform:rotate(-7deg);box-shadow:0 24px 80px #000a,inset 0 1px #ffffff30,0 0 70px #ff713044}
+.service-art-large .service-art-main img{width:102px;height:102px}
+.service-art-large .service-art-orbit-a{width:290px;height:290px}
+.service-art-large .service-art-orbit-b{width:380px;height:155px}
+.service-art-large .service-art-glow{width:210px;height:210px;filter:blur(48px)}
+.service-art-large .service-art-label{top:30px;left:30px;font-size:9px}
+.service-art-large .service-art-chips{right:25px;bottom:60px}
+.service-art-large .service-art-chips span{font-size:7px;padding:7px 9px}
+@keyframes serviceSpin{to{transform:rotateX(65deg) rotate(336deg)}}
+@media(max-width:700px){.service-art{height:125px;margin-bottom:14px}.service-art-main{width:72px;height:72px;border-radius:23px}.service-art-main img{width:44px;height:44px}.service-art-large .service-art-main{width:105px;height:105px;border-radius:30px}.service-art-large .service-art-main img{width:65px;height:65px}.service-art-large .service-art-orbit-a{width:190px;height:190px}.service-art-large .service-art-orbit-b{width:240px;height:100px}.service-art-large .service-art-chips{bottom:25px;right:12px}.service-art-large .service-art-label{top:15px;left:15px}}
+@media(prefers-reduced-motion:reduce){.service-art-orbit-a{animation:none!important}}
