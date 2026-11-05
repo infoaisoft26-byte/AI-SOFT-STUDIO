@@ -47,7 +47,7 @@ export default async function handler(req,res){
       COUNT(DISTINCT ct.id)::int AS contacts,COUNT(DISTINCT m.id)::int AS message_count,
       COUNT(DISTINCT m.id) FILTER(WHERE m.direction='outbound')::int AS sent_count,
       COUNT(DISTINCT m.id) FILTER(WHERE m.status='failed')::int AS failed_count,
-      COALESCE(SUM(us.quantity),0)::int AS metered_usage
+      COALESCE((SELECT SUM(us.quantity)::int FROM studio_saas_usage us WHERE us.company_id=c.id AND us.created_at>=date_trunc('month',NOW())),0)::int AS metered_usage
      FROM studio_companies c LEFT JOIN studio_company_users u ON u.company_id=c.id
      LEFT JOIN studio_company_whatsapp w ON w.company_id=c.id
      LEFT JOIN studio_company_contacts ct ON ct.company_id=c.id
