@@ -12,7 +12,7 @@ export default async function handler(req,res){
       sql`SELECT status,display_phone FROM studio_company_whatsapp WHERE company_id=${user.company_id} LIMIT 1`,
       sql`SELECT COUNT(*)::int AS employees FROM studio_company_users WHERE company_id=${user.company_id} AND active=TRUE`,
       sql`SELECT p.name,p.price,p.billing_period,p.message_quota,p.contact_limit,p.team_limit,p.campaign_limit FROM studio_saas_plans p JOIN studio_companies c ON c.plan=p.plan_key WHERE c.id=${user.company_id} LIMIT 1`,
-      sql`SELECT COALESCE(SUM(quantity),0)::int AS messages_used FROM studio_saas_usage WHERE company_id=${user.company_id}`,
+      sql`SELECT COALESCE(SUM(quantity),0)::int AS messages_used FROM studio_saas_usage WHERE company_id=${user.company_id} AND created_at>=date_trunc(${"month"},NOW())`,
       sql`SELECT trial_message_quota FROM studio_saas_settings WHERE id=1 LIMIT 1`
     ]);
     return res.status(200).json({company:{id:user.company_id,name:user.company_name,status:user.company_status,trialEndsAt:user.trial_ends_at||null,plan:plan[0]||null,messagesUsed:usage[0]?.messages_used||0,messageQuota:user.company_status==='trial'?Number(trialSettings[0]?.trial_message_quota||50):Number(plan[0]?.message_quota||0)},user:{id:user.id,name:user.name,email:user.email,role:user.role},metrics:{contacts:counts[0].contacts,employees:members[0].employees},whatsapp:account[0]||{status:"not_connected",display_phone:null}});
