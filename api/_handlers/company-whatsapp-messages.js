@@ -1,6 +1,6 @@
-import { db } from "../../_lib/db.js";
-import { ensureCompanySchema,requireCompanyUser,decryptCompanyToken } from "../../_lib/company.js";
-import { checkWhatsappQuota,recordWhatsappUsage } from "../../_lib/saas-usage.js";
+import { db } from "../_lib/db.js";
+import { ensureCompanySchema,requireCompanyUser,decryptCompanyToken } from "../_lib/company.js";
+import { checkWhatsappQuota,recordWhatsappUsage } from "../_lib/saas-usage.js";
 const version=process.env.WHATSAPP_GRAPH_API_VERSION||"v26.0";
 async function send(phoneId,token,to,text){
   const response=await fetch(`https://graph.facebook.com/${version}/${phoneId}/messages`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({messaging_product:"whatsapp",recipient_type:"individual",to,type:"text",text:{preview_url:false,body:text}})});

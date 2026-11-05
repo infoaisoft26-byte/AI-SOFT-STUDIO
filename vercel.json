@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index?path=:path*"
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/whatsapp-campaigns",
