@@ -5,6 +5,7 @@ import adminMe from "./_handlers/admin-me.js";
 import adminWhatsapp from "./_handlers/admin-whatsapp.js";
 import adminWorkspace from "./_handlers/admin-workspace.js";
 import companyAuth from "./_handlers/company-auth.js";
+import companyRegister from "./_handlers/company-register.js";
 import companySettings from "./_handlers/company-settings.js";
 import companyTeam from "./_handlers/company-team.js";
 import companyWhatsappConnect from "./_handlers/company-whatsapp-connect.js";
@@ -22,6 +23,7 @@ const routes = new Map([
   ["/api/admin/whatsapp", adminWhatsapp],
   ["/api/admin/workspace", adminWorkspace],
   ["/api/company/auth", companyAuth],
+  ["/api/company/register", companyRegister],
   ["/api/company/settings", companySettings],
   ["/api/company/team", companyTeam],
   ["/api/company/whatsapp/connect", companyWhatsappConnect],
