@@ -41,6 +41,8 @@ async function processCompanyEntry(sql,entry,change){
  }
  for(const status of value.statuses||[]){
   await sql`UPDATE studio_company_messages SET status=${status.status||"updated"} WHERE wamid=${status.id} AND company_id=${wa.company_id} AND direction='outbound'`;
+  const changed=await sql`UPDATE studio_whatsapp_campaign_recipients SET status=${status.status||"updated"},updated_at=NOW() WHERE wamid=${status.id} AND company_id=${wa.company_id} AND status IS DISTINCT FROM ${status.status||"updated"} RETURNING campaign_id`;
+  for(const row of changed){if(status.status==="delivered")await sql`UPDATE studio_whatsapp_campaigns SET delivered_count=delivered_count+1 WHERE id=${row.campaign_id}`;else if(status.status==="read")await sql`UPDATE studio_whatsapp_campaigns SET read_count=read_count+1 WHERE id=${row.campaign_id}`;else if(status.status==="failed")await sql`UPDATE studio_whatsapp_campaigns SET failed_count=failed_count+1 WHERE id=${row.campaign_id}`;}
  }
  return true;
 }
