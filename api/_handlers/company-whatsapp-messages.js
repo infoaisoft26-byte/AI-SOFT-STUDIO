@@ -1,5 +1,6 @@
 import { db } from "../../_lib/db.js";
 import { ensureCompanySchema,requireCompanyUser,decryptCompanyToken } from "../../_lib/company.js";
+import { checkWhatsappQuota,recordWhatsappUsage } from "../../_lib/saas-usage.js";
 const version=process.env.WHATSAPP_GRAPH_API_VERSION||"v26.0";
 async function send(phoneId,token,to,text){
   const response=await fetch(`https://graph.facebook.com/${version}/${phoneId}/messages`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({messaging_product:"whatsapp",recipient_type:"individual",to,type:"text",text:{preview_url:false,body:text}})});
@@ -32,12 +33,15 @@ export default async function handler(req,res){
     ]);
     if(!contactRows.length)return res.status(404).json({error:"Contact not found in this company."});
     const wa=waRows[0];if(!wa||wa.status!=="connected"||!wa.encrypted_access_token) return res.status(409).json({error:"Connect your company's WhatsApp number first."});
+    const quota=await checkWhatsappQuota(sql,user);
+    if(!quota.allowed)return res.status(429).json({error:quota.error});
     const token=decryptCompanyToken(wa.encrypted_access_token);
     const result=await send(wa.phone_number_id,token,contactRows[0].phone,text);
     const wamid=result.messages?.[0]?.id||null;
     await sql`INSERT INTO studio_company_messages(company_id,contact_id,wamid,direction,message_type,body,status,assigned_user_id)
       VALUES(${user.company_id},${contactId},${wamid},'outbound','text',${text},'sent',${user.id}) ON CONFLICT(wamid) DO NOTHING`;
     await sql`UPDATE studio_company_contacts SET last_message_at=NOW() WHERE id=${contactId} AND company_id=${user.company_id}`;
+    await recordWhatsappUsage(sql,user.company_id);
     return res.status(200).json({ok:true,messageId:wamid});
   }catch(error){console.error("Company WhatsApp messages failed:",error.message);return res.status(503).json({error:error.message||"Company inbox is unavailable."});}
 }

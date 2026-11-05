@@ -16,11 +16,16 @@ export default async function handler(req,res){
   }
   try{
     const sql=db();await ensureCompanySchema(sql);
+    await sql`CREATE TABLE IF NOT EXISTS studio_saas_settings(id INTEGER PRIMARY KEY DEFAULT 1 CHECK(id=1),signup_enabled BOOLEAN NOT NULL DEFAULT TRUE,trial_hours INTEGER NOT NULL DEFAULT 24,trial_message_quota INTEGER NOT NULL DEFAULT 50,trial_contact_limit INTEGER NOT NULL DEFAULT 25,currency TEXT NOT NULL DEFAULT 'INR',updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+    await sql`INSERT INTO studio_saas_settings(id) VALUES(1) ON CONFLICT(id) DO NOTHING`;
+    const configRows=await sql`SELECT signup_enabled,trial_hours FROM studio_saas_settings WHERE id=1`;
+    if(!configRows[0]?.signup_enabled)return res.status(403).json({error:"New customer registration is temporarily closed."});
+    const trialHours=Math.max(1,Math.min(168,Number(configRows[0].trial_hours)||24));
     const exists=await sql`SELECT id FROM studio_company_users WHERE LOWER(email)=${email} LIMIT 1`;
     if(exists.length)return res.status(409).json({error:"An account with this email already exists. Please sign in instead."});
     const slug=makeSlug(companyName);
     const rows=await sql`INSERT INTO studio_companies(name,slug,owner_name,owner_email,plan,status,trial_started_at,trial_ends_at)
-      VALUES(${companyName},${slug},${ownerName},${email},'trial','trial',NOW(),NOW()+INTERVAL '24 hours')
+      VALUES(${companyName},${slug},${ownerName},${email},'trial','trial',NOW(),NOW()+(${trialHours} * INTERVAL '1 hour'))
       RETURNING id,name,slug,trial_ends_at`;
     const company=rows[0];
     try{

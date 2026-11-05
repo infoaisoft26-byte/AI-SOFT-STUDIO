@@ -3,6 +3,7 @@ import adminEnquiries from "./_handlers/admin-enquiries.js";
 import adminLogin from "./_handlers/admin-login.js";
 import adminMe from "./_handlers/admin-me.js";
 import adminWhatsapp from "./_handlers/admin-whatsapp.js";
+import adminSaas from "./_handlers/admin-saas.js";
 import adminWorkspace from "./_handlers/admin-workspace.js";
 import companyAuth from "./_handlers/company-auth.js";
 import companyRegister from "./_handlers/company-register.js";
@@ -21,6 +22,7 @@ const routes = new Map([
   ["/api/admin/login", adminLogin],
   ["/api/admin/me", adminMe],
   ["/api/admin/whatsapp", adminWhatsapp],
+  ["/api/admin/saas", adminSaas],
   ["/api/admin/workspace", adminWorkspace],
   ["/api/company/auth", companyAuth],
   ["/api/company/register", companyRegister],
