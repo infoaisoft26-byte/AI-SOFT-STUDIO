@@ -2,6 +2,7 @@ import { createHmac,timingSafeEqual } from "node:crypto";
 import { db,ensureSchema } from "../_lib/db.js";
 import { ensureCompanySchema,decryptCompanyToken } from "../_lib/company.js";
 import { sendText } from "../_lib/whatsapp.js";
+import { checkResourceQuota } from "../_lib/saas-usage.js";
 export const config={api:{bodyParser:false}};
 async function readRawBody(req){const chunks=[];for await(const chunk of req)chunks.push(Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk));return Buffer.concat(chunks);}
 function validSignature(raw,signature){const secret=process.env.META_APP_SECRET;if(!secret||!signature?.startsWith("sha256="))return false;const expected=Buffer.from("sha256="+createHmac("sha256",secret).update(raw).digest("hex"));const supplied=Buffer.from(signature);return expected.length===supplied.length&&timingSafeEqual(expected,supplied);}
@@ -12,7 +13,7 @@ async function sendCompanyText(phoneId,token,to,body){
 async function processCompanyEntry(sql,entry,change){
  const value=change.value||{},phoneId=String(value.metadata?.phone_number_id||"");
  if(!phoneId)return false;
- const rows=await sql`SELECT w.company_id,w.phone_number_id,w.encrypted_access_token,c.name AS company_name
+ const rows=await sql`SELECT w.company_id,w.phone_number_id,w.encrypted_access_token,c.name AS company_name,c.status AS company_status
   FROM studio_company_whatsapp w JOIN studio_companies c ON c.id=w.company_id
   WHERE w.phone_number_id=${phoneId} AND w.status='connected' LIMIT 1`;
  const wa=rows[0];if(!wa)return false;
@@ -21,26 +22,25 @@ async function processCompanyEntry(sql,entry,change){
   const phone=String(message.from||"").replace(/\D/g,"");if(!phone||!message.id)continue;
   const profile=(value.contacts||[]).find(x=>x.wa_id===message.from)?.profile?.name||null;
   const body=message.text?.body||(message.type==="button"?message.button?.text:null)||`[${message.type||"message"} message]`;
-  const contactRows=await sql`INSERT INTO studio_company_contacts(company_id,phone,name,last_message_at)
-   VALUES(${wa.company_id},${phone},${profile},NOW())
-   ON CONFLICT(company_id,phone) DO UPDATE SET name=COALESCE(EXCLUDED.name,studio_company_contacts.name),last_message_at=NOW()
-   RETURNING id,phone`;
-  const contact=contactRows[0];
-  const inserted=await sql`INSERT INTO studio_company_messages(company_id,contact_id,wamid,direction,message_type,body,status)
-   VALUES(${wa.company_id},${contact.id},${message.id},'inbound',${message.type||"unknown"},${body},'received')
-   ON CONFLICT(wamid) DO NOTHING RETURNING id`;
+  let contactRows=await sql`SELECT id,phone FROM studio_company_contacts WHERE company_id=${wa.company_id} AND phone=${phone} LIMIT 1`;
+  if(!contactRows.length){const cap=await checkResourceQuota(sql,{company_id:wa.company_id,company_status:wa.company_status},"contact");if(cap.allowed)contactRows=await sql`INSERT INTO studio_company_contacts(company_id,phone,name,last_message_at) VALUES(${wa.company_id},${phone},${profile},NOW()) ON CONFLICT(company_id,phone) DO UPDATE SET name=COALESCE(EXCLUDED.name,studio_company_contacts.name),last_message_at=NOW() RETURNING id,phone`;}
+  else await sql`UPDATE studio_company_contacts SET name=COALESCE(${profile},name),last_message_at=NOW() WHERE id=${contactRows[0].id}`;
+  const contact=contactRows[0]||null;
+  const inserted=await sql`INSERT INTO studio_company_messages(company_id,contact_id,wamid,direction,message_type,body,status) VALUES(${wa.company_id},${contact?.id||null},${message.id},'inbound',${message.type||"unknown"},${body},'received') ON CONFLICT(wamid) DO NOTHING RETURNING id`;
   if(!inserted.length)continue;
   const settings=await sql`SELECT auto_reply_enabled,auto_reply_text FROM studio_company_settings WHERE company_id=${wa.company_id} LIMIT 1`;
   if(settings[0]?.auto_reply_enabled){
    const reply=String(settings[0].auto_reply_text||"Thanks for contacting us. Our team will get back to you shortly.").replace(/\{company\}/g,wa.company_name);
    try{const sent=await sendCompanyText(wa.phone_number_id,token,phone,reply);const wamid=sent.messages?.[0]?.id||null;
     await sql`INSERT INTO studio_company_messages(company_id,contact_id,wamid,direction,message_type,body,status)
-     VALUES(${wa.company_id},${contact.id},${wamid},'outbound','text',${reply},'sent') ON CONFLICT(wamid) DO NOTHING`;
+     VALUES(${wa.company_id},${contact?.id||null},${wamid},'outbound','text',${reply},'sent') ON CONFLICT(wamid) DO NOTHING`;
    }catch(error){console.error("Company WhatsApp auto-reply failed:",error.message);}
   }
  }
  for(const status of value.statuses||[]){
   await sql`UPDATE studio_company_messages SET status=${status.status||"updated"} WHERE wamid=${status.id} AND company_id=${wa.company_id} AND direction='outbound'`;
+  const changed=await sql`UPDATE studio_whatsapp_campaign_recipients SET status=${status.status||"updated"},updated_at=NOW() WHERE wamid=${status.id} AND company_id=${wa.company_id} AND status IS DISTINCT FROM ${status.status||"updated"} RETURNING campaign_id`;
+  for(const row of changed){if(status.status==="delivered")await sql`UPDATE studio_whatsapp_campaigns SET delivered_count=delivered_count+1 WHERE id=${row.campaign_id}`;else if(status.status==="read")await sql`UPDATE studio_whatsapp_campaigns SET read_count=read_count+1 WHERE id=${row.campaign_id}`;else if(status.status==="failed")await sql`UPDATE studio_whatsapp_campaigns SET failed_count=failed_count+1 WHERE id=${row.campaign_id}`;}
  }
  return true;
 }

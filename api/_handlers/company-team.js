@@ -1,5 +1,6 @@
 import { db } from "../_lib/db.js";
 import { ensureCompanySchema,requireCompanyUser,hashPassword,makeTempPassword } from "../_lib/company.js";
+import { checkResourceQuota } from "../_lib/saas-usage.js";
 export default async function handler(req,res){
   res.setHeader("Cache-Control","no-store");
   if(!["GET","POST","PATCH"].includes(req.method)){res.setHeader("Allow","GET, POST, PATCH");return res.status(405).json({error:"Method not allowed"});}
@@ -12,6 +13,7 @@ export default async function handler(req,res){
       return res.status(200).json({members});
     }
     if(req.method==="POST"){
+      const quota=await checkResourceQuota(sql,user,"team");if(!quota.allowed)return res.status(429).json({error:quota.error});
       const name=String(body.name||"").trim().slice(0,160),email=String(body.email||"").trim().toLowerCase(),phone=String(body.phone||"").slice(0,40);
       const role=user.role==="owner" && body.role==="manager"?"manager":"employee";
       if(!name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return res.status(400).json({error:"Employee name and valid email are required."});

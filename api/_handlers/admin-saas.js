@@ -1,9 +1,11 @@
 import { requireAdmin } from "../_lib/auth.js";
 import { db } from "../_lib/db.js";
 import { ensureCompanySchema } from "../_lib/company.js";
+import { ensureSaasSchema } from "../_lib/saas-usage.js";
 
 async function init(sql){
  await ensureCompanySchema(sql);
+ await ensureSaasSchema(sql);
  await sql`CREATE TABLE IF NOT EXISTS studio_saas_settings(
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK(id=1),signup_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   trial_hours INTEGER NOT NULL DEFAULT 24,trial_message_quota INTEGER NOT NULL DEFAULT 50,
@@ -59,7 +61,7 @@ export default async function handler(req,res){
     sql`SELECT COUNT(*)::int AS total,COALESCE(SUM(quantity),0)::int AS quantity FROM studio_saas_usage WHERE created_at>=date_trunc('month',NOW())`,
     sql`SELECT p.id,p.company_id,c.name AS company_name,p.plan_key,p.provider,p.provider_payment_id,p.amount,p.currency,p.status,p.paid_at,p.created_at FROM studio_saas_payments p LEFT JOIN studio_companies c ON c.id=p.company_id ORDER BY p.created_at DESC LIMIT 500`,
     sql`SELECT date_trunc('day',created_at)::date AS day,COUNT(*)::int AS registrations FROM studio_companies WHERE created_at>=NOW()-INTERVAL '30 days' GROUP BY 1 ORDER BY 1`,
-    sql`SELECT status,COUNT(*)::int AS count FROM studio_company_messages WHERE direction='outbound' GROUP BY status`
+    sql`SELECT c.id,c.name AS company_name,x.template_name,x.status,x.total_count,x.sent_count,x.delivered_count,x.read_count,x.failed_count,x.created_at FROM studio_whatsapp_campaigns x JOIN studio_companies c ON c.id=x.company_id ORDER BY x.created_at DESC LIMIT 500`
    ]);
    const statusCounts=Object.fromEntries(companies.map(x=>[x.status,(companies.filter(y=>y.status===x.status).length)]));
    const waCounts=Object.fromEntries(wa.map(x=>[x.status,Number(x.count)]));
@@ -74,8 +76,9 @@ export default async function handler(req,res){
   }
   if(req.method==="POST"&&body.action==="settings.save"){
    const hours=Math.max(1,Math.min(168,Number(body.trialHours)||24)),quota=Math.max(0,Math.min(100000,Number(body.trialMessageQuota)||0)),contacts=Math.max(0,Math.min(100000,Number(body.trialContactLimit)||0));
+   const teamLimit=Math.max(0,Math.min(1000,Number(body.trialTeamLimit)||0)),campaignLimit=Math.max(0,Math.min(10000,Number(body.trialCampaignLimit)||0));
    const enabled=body.signupEnabled===true;
-   const rows=await sql`UPDATE studio_saas_settings SET signup_enabled=${enabled},trial_hours=${hours},trial_message_quota=${quota},trial_contact_limit=${contacts},currency='INR',updated_at=NOW() WHERE id=1 RETURNING *`;
+   const rows=await sql`UPDATE studio_saas_settings SET signup_enabled=${enabled},trial_hours=${hours},trial_message_quota=${quota},trial_contact_limit=${contacts},trial_team_limit=${teamLimit},trial_campaign_limit=${campaignLimit},currency='INR',updated_at=NOW() WHERE id=1 RETURNING *`;
    await audit(sql,admin.email,"saas.settings.updated",1);return res.status(200).json({ok:true,settings:rows[0]});
   }
   if(req.method==="POST"&&body.action==="plan.save"){

@@ -1,19 +1,30 @@
-export async function checkWhatsappQuota(sql,user){
- await sql`CREATE TABLE IF NOT EXISTS studio_saas_settings(id INTEGER PRIMARY KEY DEFAULT 1 CHECK(id=1),signup_enabled BOOLEAN NOT NULL DEFAULT TRUE,trial_hours INTEGER NOT NULL DEFAULT 24,trial_message_quota INTEGER NOT NULL DEFAULT 50,trial_contact_limit INTEGER NOT NULL DEFAULT 25,currency TEXT NOT NULL DEFAULT 'INR',updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
- await sql`INSERT INTO studio_saas_settings(id) VALUES(1) ON CONFLICT(id) DO NOTHING`;
- await sql`CREATE TABLE IF NOT EXISTS studio_saas_plans(id BIGSERIAL PRIMARY KEY,plan_key TEXT NOT NULL UNIQUE,name TEXT NOT NULL,price NUMERIC(12,2) NOT NULL DEFAULT 0,billing_period TEXT NOT NULL DEFAULT 'monthly',message_quota INTEGER NOT NULL DEFAULT 1000,contact_limit INTEGER NOT NULL DEFAULT 500,team_limit INTEGER NOT NULL DEFAULT 2,campaign_limit INTEGER NOT NULL DEFAULT 10,whatsapp_enabled BOOLEAN NOT NULL DEFAULT TRUE,api_access BOOLEAN NOT NULL DEFAULT FALSE,active BOOLEAN NOT NULL DEFAULT TRUE,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+export async function ensureSaasSchema(sql){
+ await sql`CREATE TABLE IF NOT EXISTS studio_saas_settings(id INTEGER PRIMARY KEY DEFAULT 1 CHECK(id=1),signup_enabled BOOLEAN NOT NULL DEFAULT TRUE,trial_hours INTEGER NOT NULL DEFAULT 24,trial_message_quota INTEGER NOT NULL DEFAULT 50,trial_contact_limit INTEGER NOT NULL DEFAULT 25,trial_team_limit INTEGER NOT NULL DEFAULT 1,trial_campaign_limit INTEGER NOT NULL DEFAULT 1,currency TEXT NOT NULL DEFAULT 'INR',updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+ await sql`ALTER TABLE studio_saas_settings ADD COLUMN IF NOT EXISTS trial_team_limit INTEGER NOT NULL DEFAULT 1`;
+ await sql`ALTER TABLE studio_saas_settings ADD COLUMN IF NOT EXISTS trial_campaign_limit INTEGER NOT NULL DEFAULT 1`;
+ await sql`CREATE TABLE IF NOT EXISTS studio_saas_plans(id BIGSERIAL PRIMARY KEY,plan_key TEXT NOT NULL UNIQUE,name TEXT NOT NULL,price NUMERIC(12,2) NOT NULL DEFAULT 1000,billing_period TEXT NOT NULL DEFAULT 'monthly',message_quota INTEGER NOT NULL DEFAULT 1000,contact_limit INTEGER NOT NULL DEFAULT 500,team_limit INTEGER NOT NULL DEFAULT 2,campaign_limit INTEGER NOT NULL DEFAULT 10,whatsapp_enabled BOOLEAN NOT NULL DEFAULT TRUE,api_access BOOLEAN NOT NULL DEFAULT FALSE,active BOOLEAN NOT NULL DEFAULT TRUE,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
  await sql`CREATE TABLE IF NOT EXISTS studio_saas_usage(id BIGSERIAL PRIMARY KEY,company_id BIGINT NOT NULL REFERENCES studio_companies(id) ON DELETE CASCADE,channel TEXT NOT NULL DEFAULT 'whatsapp',event_type TEXT NOT NULL DEFAULT 'message',quantity INTEGER NOT NULL DEFAULT 1,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
- const [settings,plans,used]=await Promise.all([
-  sql`SELECT trial_message_quota FROM studio_saas_settings WHERE id=1`,
-  sql`SELECT message_quota,whatsapp_enabled,active FROM studio_saas_plans WHERE plan_key=(SELECT plan FROM studio_companies WHERE id=${user.company_id}) LIMIT 1`,
-  sql`SELECT COALESCE(SUM(quantity),0)::int AS used FROM studio_saas_usage WHERE company_id=${user.company_id} AND channel='whatsapp' AND created_at>=date_trunc('month',NOW())`
+ await sql`CREATE TABLE IF NOT EXISTS studio_whatsapp_campaigns(id BIGSERIAL PRIMARY KEY,company_id BIGINT NOT NULL REFERENCES studio_companies(id) ON DELETE CASCADE,created_by BIGINT REFERENCES studio_company_users(id) ON DELETE SET NULL,template_name TEXT NOT NULL,language TEXT NOT NULL DEFAULT 'en',components JSONB NOT NULL DEFAULT '[]'::jsonb,status TEXT NOT NULL DEFAULT 'queued',total_count INTEGER NOT NULL DEFAULT 0,sent_count INTEGER NOT NULL DEFAULT 0,delivered_count INTEGER NOT NULL DEFAULT 0,read_count INTEGER NOT NULL DEFAULT 0,failed_count INTEGER NOT NULL DEFAULT 0,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+ await sql`CREATE TABLE IF NOT EXISTS studio_whatsapp_campaign_recipients(id BIGSERIAL PRIMARY KEY,campaign_id BIGINT NOT NULL REFERENCES studio_whatsapp_campaigns(id) ON DELETE CASCADE,company_id BIGINT NOT NULL REFERENCES studio_companies(id) ON DELETE CASCADE,contact_id BIGINT REFERENCES studio_company_contacts(id) ON DELETE SET NULL,phone TEXT NOT NULL,wamid TEXT UNIQUE,status TEXT NOT NULL DEFAULT 'queued',error TEXT,attempts INTEGER NOT NULL DEFAULT 0,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(campaign_id,phone))`;
+ await sql`CREATE INDEX IF NOT EXISTS studio_campaign_queue_idx ON studio_whatsapp_campaign_recipients(status,created_at)`;
+ await sql`CREATE TABLE IF NOT EXISTS studio_saas_payments(id BIGSERIAL PRIMARY KEY,company_id BIGINT REFERENCES studio_companies(id) ON DELETE SET NULL,plan_key TEXT,provider TEXT,provider_order_id TEXT UNIQUE,provider_payment_id TEXT UNIQUE,amount NUMERIC(12,2) NOT NULL DEFAULT 0,currency TEXT NOT NULL DEFAULT 'INR',status TEXT NOT NULL DEFAULT 'created',paid_at TIMESTAMPTZ,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),metadata JSONB NOT NULL DEFAULT '{}'::jsonb)`;
+ await sql`ALTER TABLE studio_saas_payments ADD COLUMN IF NOT EXISTS provider_order_id TEXT`;
+ await sql`CREATE UNIQUE INDEX IF NOT EXISTS studio_saas_payments_order_idx ON studio_saas_payments(provider_order_id) WHERE provider_order_id IS NOT NULL`;
+}
+async function quotaContext(sql,user){
+ await ensureSaasSchema(sql);
+ const [s,p,u,c,t,a]=await Promise.all([
+  sql`SELECT trial_message_quota,trial_contact_limit,trial_team_limit,trial_campaign_limit FROM studio_saas_settings WHERE id=1`,
+  sql`SELECT message_quota,contact_limit,team_limit,campaign_limit,whatsapp_enabled,active FROM studio_saas_plans WHERE plan_key=(SELECT plan FROM studio_companies WHERE id=${user.company_id}) LIMIT 1`,
+  sql`SELECT COALESCE(SUM(quantity),0)::int AS used FROM studio_saas_usage WHERE company_id=${user.company_id} AND channel='whatsapp' AND created_at>=date_trunc('month',NOW())`,
+  sql`SELECT COUNT(*)::int AS used FROM studio_company_contacts WHERE company_id=${user.company_id}`,
+  sql`SELECT COUNT(*)::int AS used FROM studio_company_users WHERE company_id=${user.company_id} AND active=TRUE AND role<>'owner'`,
+  sql`SELECT COUNT(*)::int AS used FROM studio_whatsapp_campaigns WHERE company_id=${user.company_id} AND created_at>=date_trunc('month',NOW())`
  ]);
- const trial=user.company_status==='trial',plan=plans[0];
- if(!trial&&(!plan||!plan.active||!plan.whatsapp_enabled))return {allowed:false,error:"WhatsApp messaging is not included in the assigned plan."};
- const quota=trial?Number(settings[0]?.trial_message_quota??50):Number(plan.message_quota||0);
- if(Number(used[0]?.used||0)>=quota)return {allowed:false,error:"Your WhatsApp message quota is exhausted for this billing month. Upgrade your plan to continue."};
- return {allowed:true};
+ const trial=user.company_status==='trial',plan=p[0],settings=s[0]||{};
+ if(!trial&&(!plan||!plan.active||!plan.whatsapp_enabled))return {allowed:false,error:"Your assigned plan does not include WhatsApp messaging."};
+ return {allowed:true,trial,quota:trial?Number(settings.trial_message_quota):Number(plan.message_quota),messagesUsed:Number(u[0].used),contactLimit:trial?Number(settings.trial_contact_limit):Number(plan.contact_limit),contactsUsed:Number(c[0].used),teamLimit:trial?Number(settings.trial_team_limit):Number(plan.team_limit),teamUsed:Number(t[0].used),campaignLimit:trial?Number(settings.trial_campaign_limit):Number(plan.campaign_limit),campaignsUsed:Number(a[0].used)};
 }
-export async function recordWhatsappUsage(sql,companyId){
- await sql`INSERT INTO studio_saas_usage(company_id,channel,event_type,quantity) VALUES(${companyId},'whatsapp','message',1)`;
-}
+export async function checkWhatsappQuota(sql,user){const q=await quotaContext(sql,user);if(!q.allowed)return q;if(q.messagesUsed>=q.quota)return {allowed:false,error:"Your monthly WhatsApp message quota is exhausted."};return {allowed:true,...q};}
+export async function checkResourceQuota(sql,user,resource){const q=await quotaContext(sql,user);if(!q.allowed)return q;const map={contact:["contactsUsed","contactLimit"],team:["teamUsed","teamLimit"],campaign:["campaignsUsed","campaignLimit"]};const pair=map[resource];if(!pair)return {allowed:false,error:"Unknown quota type."};if(q[pair[0]]>=q[pair[1]])return {allowed:false,error:"Your "+resource+" limit is reached. Upgrade your plan to continue."};return {allowed:true,...q};}
+export async function recordWhatsappUsage(sql,companyId){await ensureSaasSchema(sql);await sql`INSERT INTO studio_saas_usage(company_id,channel,event_type,quantity) VALUES(${companyId},'whatsapp','message',1)`;}

@@ -11,6 +11,8 @@ export default defineConfig({
         admin: resolve(process.cwd(), 'admin.html'),
         whatsapp: resolve(process.cwd(), 'whatsapp.html'),
         company: resolve(process.cwd(), 'company.html'),
+        register: resolve(process.cwd(), 'register.html'),
+        saasAdmin: resolve(process.cwd(), 'saas-admin.html'),
         companies: resolve(process.cwd(), 'companies.html'),
       },
     },

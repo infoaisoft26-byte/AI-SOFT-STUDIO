@@ -6,6 +6,9 @@ import adminWhatsapp from "./_handlers/admin-whatsapp.js";
 import adminSaas from "./_handlers/admin-saas.js";
 import adminWorkspace from "./_handlers/admin-workspace.js";
 import companyAuth from "./_handlers/company-auth.js";
+import companyContacts from "./_handlers/company-contacts.js";
+import companyCampaigns from "./_handlers/company-campaigns.js";
+import campaignWorker from "./_handlers/whatsapp-campaign-worker.js";
 import companyRegister from "./_handlers/company-register.js";
 import companySettings from "./_handlers/company-settings.js";
 import companyTeam from "./_handlers/company-team.js";
@@ -14,6 +17,8 @@ import companyWhatsappMessages from "./_handlers/company-whatsapp-messages.js";
 import companyWhatsappRegister from "./_handlers/company-whatsapp-register.js";
 import companyWorkspace from "./_handlers/company-workspace.js";
 import enquiries from "./_handlers/enquiries.js";
+import companyPayment from "./_handlers/company-payment.js";
+import razorpayWebhook from "./_handlers/razorpay-webhook.js";
 import whatsappWebhook from "./_handlers/whatsapp-webhook.js";
 
 const routes = new Map([
@@ -25,6 +30,11 @@ const routes = new Map([
   ["/api/admin/saas", adminSaas],
   ["/api/admin/workspace", adminWorkspace],
   ["/api/company/auth", companyAuth],
+  ["/api/company/contacts", companyContacts],
+  ["/api/company/payment", companyPayment],
+  ["/api/payments/razorpay/webhook", razorpayWebhook],
+  ["/api/company/campaigns", companyCampaigns],
+  ["/api/cron/whatsapp-campaigns", campaignWorker],
   ["/api/company/register", companyRegister],
   ["/api/company/settings", companySettings],
   ["/api/company/team", companyTeam],
