@@ -1,10 +1,11 @@
 import { createHmac,timingSafeEqual } from "node:crypto";
 import { db,ensureSchema } from "../_lib/db.js";
 import { ensureCompanySchema,decryptCompanyToken } from "../_lib/company.js";
+import { getMetaConfig,decryptMetaAppSecret,decryptMetaVerifyToken } from "../_lib/meta-config.js";
 import { sendText } from "../_lib/whatsapp.js";
 export const config={api:{bodyParser:false}};
 async function readRawBody(req){const chunks=[];for await(const chunk of req)chunks.push(Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk));return Buffer.concat(chunks);}
-function validSignature(raw,signature){const secret=process.env.META_APP_SECRET;if(!secret||!signature?.startsWith("sha256="))return false;const expected=Buffer.from("sha256="+createHmac("sha256",secret).update(raw).digest("hex"));const supplied=Buffer.from(signature);return expected.length===supplied.length&&timingSafeEqual(expected,supplied);}
+function validSignature(raw,signature,secret){if(!secret||!signature?.startsWith("sha256="))return false;const expected=Buffer.from("sha256="+createHmac("sha256",secret).update(raw).digest("hex"));const supplied=Buffer.from(signature);return expected.length===supplied.length&&timingSafeEqual(expected,supplied);}
 async function sendCompanyText(phoneId,token,to,body){
  const response=await fetch(`https://graph.facebook.com/${process.env.WHATSAPP_GRAPH_API_VERSION||"v26.0"}/${phoneId}/messages`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({messaging_product:"whatsapp",recipient_type:"individual",to,type:"text",text:{preview_url:false,body:String(body).slice(0,4096)}})});
  const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error?.message||"Company WhatsApp send failed.");return data;
@@ -49,16 +50,16 @@ export default async function handler(req,res){
  res.setHeader("Cache-Control","no-store");
  if(req.method==="GET"){
   const url=new URL(req.url,"https://localhost"),mode=url.searchParams.get("hub.mode"),token=url.searchParams.get("hub.verify_token"),challenge=url.searchParams.get("hub.challenge");
-  if(mode==="subscribe"&&token&&token===process.env.WHATSAPP_VERIFY_TOKEN&&challenge){res.setHeader("Content-Type","text/plain");return res.status(200).send(challenge);}
+  if(mode==="subscribe"&&token&&challenge){try{const sql=db();const meta=await getMetaConfig(sql);const expected=decryptMetaVerifyToken(meta);if(expected&&token===expected){res.setHeader("Content-Type","text/plain");return res.status(200).send(challenge);}}catch(error){console.error("Webhook verification config unavailable:",error.message);}}
   return res.status(403).send("Webhook verification failed");
  }
  if(req.method!=="POST"){res.setHeader("Allow","GET, POST");return res.status(405).send("Method not allowed");}
  let raw;try{raw=await readRawBody(req);}catch{return res.status(400).send("Invalid body");}
- if(!validSignature(raw,req.headers["x-hub-signature-256"]))return res.status(401).send("Invalid signature");
+ let sql,meta,secret;try{sql=db();await ensureSchema(sql);await ensureCompanySchema(sql);meta=await getMetaConfig(sql);secret=decryptMetaAppSecret(meta);}catch(error){console.error("Webhook configuration unavailable:",error.message);return res.status(503).send("Webhook configuration unavailable");}
+ if(!validSignature(raw,req.headers["x-hub-signature-256"],secret))return res.status(401).send("Invalid signature");
  let payload;try{payload=JSON.parse(raw.toString("utf8"));}catch{return res.status(400).send("Invalid JSON");}
  if(payload.object!=="whatsapp_business_account")return res.status(200).send("Ignored");
  try{
-  const sql=db();await ensureSchema(sql);await ensureCompanySchema(sql);
   for(const entry of payload.entry||[]){
    for(const change of entry.changes||[]){
     const value=change.value||{};
