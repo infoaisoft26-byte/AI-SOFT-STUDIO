@@ -35,10 +35,15 @@ export default async function handler(req,res){
     const tokenData=await graph("oauth/access_token?"+params.toString(),"");
     const token=tokenData.access_token;
     if(!token)throw new Error("Meta did not return a business access token.");
-    const phoneData=await graph(wabaId+"/phone_numbers?fields=id,display_phone_number,verified_name,is_on_biz_app,platform_type&limit=100",token);
+    const phoneData=await graph(wabaId+"/phone_numbers?fields=id,display_phone_number,verified_name&limit=100",token);
     const phones=phoneData.data||[];
-    const selected=(phoneNumberId?phones.find(x=>String(x.id)===phoneNumberId):null)||phones.find(x=>x.is_on_biz_app===true)|| (phones.length===1?phones[0]:null);
-    if(!selected)throw new Error("The selected WhatsApp phone number was not found in the connected business account.");
+    const candidates=phoneNumberId?phones.filter(x=>String(x.id)===phoneNumberId):phones;
+    let selected=null;
+    for(const candidate of candidates){
+      const state=await graph(String(candidate.id)+"?fields=is_on_biz_app,platform_type",token);
+      if(state.is_on_biz_app===true&&state.platform_type==="CLOUD_API"){selected={...candidate,...state};break;}
+    }
+    if(!selected)throw new Error("Meta did not confirm a phone number active on both WhatsApp Business App and Cloud API. Check the Coexistence setup and try again.");
     const subscribed=await graph(wabaId+"/subscribed_apps",token,{method:"POST"});
     if(subscribed.success!==true)throw new Error("Meta did not confirm webhook subscription. Please retry the connection.");
     const encrypted=encryptCompanyToken(token);
