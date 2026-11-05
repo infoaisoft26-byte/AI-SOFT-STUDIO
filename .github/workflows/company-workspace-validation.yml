@@ -10,6 +10,9 @@ on:
       - "company.js"
       - "companies.html"
       - "company-admin.js"
+      - "whatsapp.html"
+      - "whatsapp.css"
+      - "whatsapp.js"
       - "vite.config.js"
       - "package.json"
 
@@ -35,5 +38,6 @@ jobs:
           find api -type f -name '*.js' -print0 | xargs -0 -n1 node --check
           node --check company.js
           node --check company-admin.js
+          node --check whatsapp.js
       - name: Build frontend
         run: npm run build
