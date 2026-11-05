@@ -1,5 +1,5 @@
-import { db } from "../../_lib/db.js";
-import { ensureCompanySchema,requireCompanyUser,encryptCompanyToken } from "../../_lib/company.js";
+import { db } from "../_lib/db.js";
+import { ensureCompanySchema,requireCompanyUser,encryptCompanyToken } from "../_lib/company.js";
 
 const version=process.env.WHATSAPP_GRAPH_API_VERSION||"v26.0";
 const idOk=v=>/^\d{5,30}$/.test(String(v||""));
