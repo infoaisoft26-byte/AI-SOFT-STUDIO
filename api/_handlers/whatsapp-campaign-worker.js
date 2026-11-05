@@ -8,7 +8,7 @@ async function sendTemplate(phoneId,token,to,name,language,components){
 }
 export default async function handler(req,res){
  res.setHeader("Cache-Control","no-store");
- if(req.method!=="POST"){res.setHeader("Allow","POST");return res.status(405).json({error:"Method not allowed"});}
+ if(!["GET","POST"].includes(req.method)){res.setHeader("Allow","GET, POST");return res.status(405).json({error:"Method not allowed"});}
  if(!process.env.CRON_SECRET||req.headers.authorization!=="Bearer "+process.env.CRON_SECRET)return res.status(401).json({error:"Unauthorized"});
  try{
   const sql=db();await ensureCompanySchema(sql);await ensureSaasSchema(sql);
