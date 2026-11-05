@@ -76,7 +76,7 @@ export default async function handler(req,res){
   }
   if(req.method==="POST"&&body.action==="meta.save"){
    const appId=String(body.metaAppId||"").trim(),configId=String(body.metaConfigId||"").trim();
-   if(!/^\\d{5,30}$/.test(appId)||!/^\\d{5,40}$/.test(configId))return res.status(400).json({error:"Enter a valid numeric Meta App ID and Embedded Signup Configuration ID."});
+   if(!/^\d{5,30}$/.test(appId)||!/^\d{5,40}$/.test(configId))return res.status(400).json({error:"Enter a valid numeric Meta App ID and Embedded Signup Configuration ID."});
    const rows=await sql`UPDATE studio_saas_settings SET meta_app_id=${appId},meta_config_id=${configId},updated_at=NOW() WHERE id=1 RETURNING meta_app_id,meta_config_id`;
    await audit(sql,admin.email,"saas.meta.settings.updated",1);
    return res.status(200).json({ok:true,metaSetup:rows[0]});
