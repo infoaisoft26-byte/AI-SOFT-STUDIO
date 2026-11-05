@@ -58,7 +58,7 @@ function EnquiryForm() {
 
 function App() {
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [activeRoom, setActiveRoom] = React.useState(0);
+  const [activeRoom, setActiveRoom] = React.useState(0);\n  const [visitorStep, setVisitorStep] = React.useState(0);
   React.useEffect(() => {
     const nodes = document.querySelectorAll('[data-reveal]');
     const observer = new IntersectionObserver(entries => entries.forEach(entry => {
@@ -98,18 +98,24 @@ function App() {
           <div className="hero-buttons"><a className="button button-orange" href="#experience">Walk into the studio <ArrowDown size={16}/></a><a className="text-button" href="#services"><span className="play-icon"><Play size={11} fill="currentColor"/></span> Explore what we create</a></div>
           <div className="hero-meta"><span><i/> AVAILABLE FOR SELECT PROJECTS</span><span>EST. 2024 · INDIA</span></div>
         </div>
-        <div className="office-stage" aria-label="Illustrated cinematic view into a modern orange and black creative technology studio">
-          <div className="stage-glow"/>
-          <div className="stage-grid"/>
-          <div className="office-ceiling"><span>AI SOFT STUDIO</span><i/></div>
-          <div className="office-backwall"><div className="wall-logo">AI<span>✳</span><small>SOFT STUDIO</small></div><div className="wall-screen"><div className="screen-top"><i/><i/><i/><span>STUDIO / LIVE SYSTEMS</span></div><div className="screen-code"><b>const</b> idea = <em>"yours"</em>;<br/><b>build</b>(idea).<i>launch</i>();<div className="screen-bars"><i/><i/><i/><i/><i/></div></div></div></div>
-          <div className="office-window"><span>CREATIVE THINKING<br/>BUILT DAILY</span><div className="window-glow"/></div>
-          <div className="office-desk desk-left"><div className="monitor"><div className="monitor-ui"><i/><i/><i/><b>DESIGN / 01</b><span/><span/><span/></div></div><div className="desk-leg"/></div>
-          <div className="office-desk desk-right"><div className="monitor monitor-wide"><div className="monitor-ui code-ui"><i/><i/><i/><b>DEVELOPMENT / 02</b><span/><span/><span/><span/></div></div><div className="desk-leg"/></div>
-          <div className="chair chair-one"/><div className="chair chair-two"/>
-          <div className="stage-floor"/>
-          <div className="stage-caption"><span>01 / THE FRONT DOOR</span><span>MOVE THROUGH OUR WORLD <ArrowUpRight size={12}/></span></div>
-          <div className="floating-stamp"><Sparkles size={15}/> IDEAS<br/>WELCOME</div>
+        <div className={`visit-scene ${visitorStep === 1 ? 'developer-visit' : ''}`} aria-label="A realistic AI SOFT STUDIO office reception and developer walkthrough">
+          <div className="visit-photo"/>
+          <div className="visit-shade"/>
+          <div className="visit-brand-wall"><span>AI SOFT</span><b>STUDIO</b><small>DESIGN · CODE · AUTOMATION</small></div>
+          <div className="visit-topline"><span><i/> AI SOFT STUDIO / PUNE</span><span>VISITOR EXPERIENCE 01—02</span></div>
+          <div className="visit-reception-desk"><div className="desk-front-brand">AI SOFT <b>STUDIO</b></div><div className="desk-glow"/></div>
+          <div className="visit-person receptionist">
+            <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=520&q=85" alt="AI SOFT STUDIO receptionist"/>
+            <div className="person-label"><b>Reception</b><span>FRONT DESK</span></div>
+          </div>
+          <div className="visit-person developer">
+            <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=520&q=85" alt="AI SOFT STUDIO developer"/>
+            <div className="person-label"><b>Developer</b><span>PRODUCT ENGINEERING</span></div>
+          </div>
+          <div className="visit-welcome">
+            {visitorStep === 0 ? <><span className="visit-eyebrow">WELCOME TO OUR OFFICE</span><h3>Hello! Welcome to <em>AI SOFT STUDIO.</em></h3><p>I'm your receptionist. What would you like to create today?</p><button className="visit-action" onClick={()=>setVisitorStep(1)}>I'd like to meet a developer <ArrowUpRight size={15}/></button></> : <><span className="visit-eyebrow">FOLLOW ME · PRODUCT ENGINEERING</span><h3>Our developer is ready to hear your <em>idea.</em></h3><p>We'll walk you through the right technology, design approach, timeline and next steps.</p><button className="visit-action" onClick={()=>goTo('contact')}>Start my project conversation <ArrowUpRight size={15}/></button><button className="visit-back" onClick={()=>setVisitorStep(0)}>Back to reception</button></>}
+          </div>
+          <div className="visit-caption"><span>01 / RECEPTION</span><span>REAL PEOPLE. REAL PROJECTS.</span></div>
         </div>
         <div className="hero-scroll"><span>SCROLL TO ENTER</span><div/></div>
       </section>
