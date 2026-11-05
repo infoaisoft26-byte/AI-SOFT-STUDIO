@@ -1,56 +1,57 @@
-import adminCompanies from "./_handlers/admin-companies.js";
-import adminEnquiries from "./_handlers/admin-enquiries.js";
-import adminLogin from "./_handlers/admin-login.js";
-import adminMe from "./_handlers/admin-me.js";
-import adminWhatsapp from "./_handlers/admin-whatsapp.js";
-import adminSaas from "./_handlers/admin-saas.js";
-import adminWorkspace from "./_handlers/admin-workspace.js";
-import companyAuth from "./_handlers/company-auth.js";
-import companyContacts from "./_handlers/company-contacts.js";
-import companyCampaigns from "./_handlers/company-campaigns.js";
-import campaignWorker from "./_handlers/whatsapp-campaign-worker.js";
-import companyRegister from "./_handlers/company-register.js";
-import companySettings from "./_handlers/company-settings.js";
-import companyTeam from "./_handlers/company-team.js";
-import companyWhatsappConnect from "./_handlers/company-whatsapp-connect.js";
-import companyWhatsappMessages from "./_handlers/company-whatsapp-messages.js";
-import companyWhatsappRegister from "./_handlers/company-whatsapp-register.js";
-import companyWorkspace from "./_handlers/company-workspace.js";
-import enquiries from "./_handlers/enquiries.js";
-import companyPayment from "./_handlers/company-payment.js";
-import razorpayWebhook from "./_handlers/razorpay-webhook.js";
-import whatsappWebhook from "./_handlers/whatsapp-webhook.js";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 const routes = new Map([
-  ["/api/admin/companies", adminCompanies],
-  ["/api/admin/enquiries", adminEnquiries],
-  ["/api/admin/login", adminLogin],
-  ["/api/admin/me", adminMe],
-  ["/api/admin/whatsapp", adminWhatsapp],
-  ["/api/admin/saas", adminSaas],
-  ["/api/admin/workspace", adminWorkspace],
-  ["/api/company/auth", companyAuth],
-  ["/api/company/contacts", companyContacts],
-  ["/api/company/payment", companyPayment],
-  ["/api/payments/razorpay/webhook", razorpayWebhook],
-  ["/api/company/campaigns", companyCampaigns],
-  ["/api/cron/whatsapp-campaigns", campaignWorker],
-  ["/api/company/register", companyRegister],
-  ["/api/company/settings", companySettings],
-  ["/api/company/team", companyTeam],
-  ["/api/company/whatsapp/connect", companyWhatsappConnect],
-  ["/api/company/whatsapp/messages", companyWhatsappMessages],
-  ["/api/company/whatsapp/register", companyWhatsappRegister],
-  ["/api/company/workspace", companyWorkspace],
-  ["/api/enquiries", enquiries],
-  ["/api/whatsapp/webhook", whatsappWebhook],
+  ["/api/admin/companies", () => import("./_handlers/admin-companies.js")],
+  ["/api/admin/enquiries", () => import("./_handlers/admin-enquiries.js")],
+  ["/api/admin/login", () => import("./_handlers/admin-login.js")],
+  ["/api/admin/me", () => import("./_handlers/admin-me.js")],
+  ["/api/admin/whatsapp", () => import("./_handlers/admin-whatsapp.js")],
+  ["/api/admin/saas", () => import("./_handlers/admin-saas.js")],
+  ["/api/admin/workspace", () => import("./_handlers/admin-workspace.js")],
+  ["/api/company/auth", () => import("./_handlers/company-auth.js")],
+  ["/api/company/contacts", () => import("./_handlers/company-contacts.js")],
+  ["/api/company/payment", () => import("./_handlers/company-payment.js")],
+  ["/api/payments/razorpay/webhook", () => import("./_handlers/razorpay-webhook.js")],
+  ["/api/company/campaigns", () => import("./_handlers/company-campaigns.js")],
+  ["/api/cron/whatsapp-campaigns", () => import("./_handlers/whatsapp-campaign-worker.js")],
+  ["/api/company/register", () => import("./_handlers/company-register.js")],
+  ["/api/company/settings", () => import("./_handlers/company-settings.js")],
+  ["/api/company/team", () => import("./_handlers/company-team.js")],
+  ["/api/company/whatsapp/connect", () => import("./_handlers/company-whatsapp-connect.js")],
+  ["/api/company/whatsapp/messages", () => import("./_handlers/company-whatsapp-messages.js")],
+  ["/api/company/whatsapp/register", () => import("./_handlers/company-whatsapp-register.js")],
+  ["/api/company/workspace", () => import("./_handlers/company-workspace.js")],
+  ["/api/enquiries", () => import("./_handlers/enquiries.js")],
+  ["/api/whatsapp/webhook", () => import("./_handlers/whatsapp-webhook.js")],
 ]);
 
 export default async function handler(req, res) {
   const rawPath = req.query?.path;
   const pathParts = Array.isArray(rawPath) ? rawPath : [rawPath || ""];
   const pathname = "/api/" + pathParts.join("/").split("/").filter(Boolean).join("/");
-  const route = routes.get(pathname);
-  if (!route) return res.status(404).json({ error: "API route not found." });
-  return route(req, res);
+  const load = routes.get(pathname);
+  if (!load) return res.status(404).json({ error: "API route not found." });
+  const module = await load();
+  return module.default(req, res);
 }
