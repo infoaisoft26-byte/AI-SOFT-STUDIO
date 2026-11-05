@@ -139,3 +139,46 @@
  .visit-scene:hover .visit-photo{transform:scale(1.09)}
  .room-display,.team-card,.service-card{will-change:transform}
 }
+
+/* SERVICE BUILD EXPLORER — interactive, role-led project cards */
+.service-card-button{width:100%;color:inherit;text-align:left;font:inherit;cursor:pointer;position:relative;overflow:hidden;border:0;border-right:1px solid #ffffff26;border-bottom:1px solid #ffffff26}
+.service-card-button:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 75% 28%,#ff79352b,transparent 42%);opacity:0;transition:opacity .45s}
+.service-card-button:hover:before,.service-card-button:focus-visible:before{opacity:1}
+.service-card-button:focus-visible{outline:2px solid var(--orange);outline-offset:-3px}
+.service-card-button .service-icon{position:relative;display:grid;place-items:center;width:58px;height:58px;border-radius:50%;color:#ff9866;background:radial-gradient(circle,#ff783a26 0%,#ff783a08 68%,transparent 70%);border:1px solid #ff8a4d5c;box-shadow:0 0 0 9px #ff783a0b,0 0 35px #ff783a12;transition:transform .5s cubic-bezier(.2,.8,.2,1),box-shadow .5s}
+.service-card-button:hover .service-icon{transform:translateY(-5px) rotate(-8deg) scale(1.08);box-shadow:0 0 0 13px #ff783a10,0 0 55px #ff783a30}
+.service-open-label{position:relative;display:inline-flex;align-items:center;gap:10px;margin-top:17px;color:#ff9866;font:9px 'DM Mono';letter-spacing:.12em;text-transform:uppercase}
+.service-open-label svg{transition:transform .25s}.service-card-button:hover .service-open-label svg{transform:translateX(5px)}
+.build-modal-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:22px;background:#030303d9;backdrop-filter:blur(15px);animation:modalFade .22s ease both}
+.build-modal{position:relative;display:grid;grid-template-columns:.88fr 1.12fr;width:min(940px,100%);max-height:min(700px,calc(100svh - 44px));overflow:auto;background:#100e0c;border:1px solid #ff874d77;box-shadow:0 35px 120px #000,0 0 90px #ff6b2c17;animation:modalEnter .48s cubic-bezier(.16,1,.3,1) both}
+.build-modal-close{position:absolute;z-index:5;top:14px;right:14px;width:40px;height:40px;display:grid;place-items:center;border:1px solid #ffffff30;background:#0b0a09d9;color:#fff;cursor:pointer;transition:background .2s,transform .2s}
+.build-modal-close:hover{background:#ff6b2c;color:#130905;transform:rotate(90deg)}
+.build-modal-visual{position:relative;min-height:510px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 46%,#ff743b35 0%,#20120d 39%,#090807 78%)}
+.modal-visual-grid{position:absolute;inset:0;background-image:linear-gradient(#ffffff0b 1px,transparent 1px),linear-gradient(90deg,#ffffff0b 1px,transparent 1px);background-size:35px 35px;mask-image:radial-gradient(ellipse at center,#000 10%,transparent 78%);transform:perspective(500px) rotateX(8deg) scale(1.25)}
+.modal-orbit{position:absolute;border:1px solid #ff8a4d55;border-radius:50%;box-shadow:0 0 30px #ff6b2c10,inset 0 0 30px #ff6b2c0b}
+.modal-orbit-one{width:280px;height:280px;animation:modalOrbit 18s linear infinite}
+.modal-orbit-two{width:360px;height:190px;transform:rotate(-34deg);border-style:dashed;animation:modalOrbit 28s linear infinite reverse}
+.modal-visual-icon{position:relative;width:150px;height:150px;display:grid;place-items:center;color:#ff9a6a;background:radial-gradient(circle,#ff79352b 0%,#ff79350c 55%,transparent 72%);border:1px solid #ff9a6a66;border-radius:50%;filter:drop-shadow(0 0 35px #ff6b2c66);animation:modalFloat 4s ease-in-out infinite}
+.modal-visual-icon:before,.modal-visual-icon:after{content:"";position:absolute;inset:-16px;border:1px solid #ff8a4d33;border-radius:50%;animation:haloPulse 4s ease-in-out infinite}
+.modal-visual-icon:after{inset:-31px;border-color:#ff8a4d20;animation-delay:.7s}
+.modal-visual-code,.modal-visual-role{position:absolute;left:25px;bottom:24px;color:#ffb28d;font:8px 'DM Mono';letter-spacing:.16em}
+.modal-visual-role{left:auto;right:25px;bottom:24px;color:#c6b5aa;text-align:right;letter-spacing:.08em}
+.build-modal-content{padding:55px 48px 35px;display:flex;flex-direction:column;justify-content:center}
+.build-modal-content h2{margin:15px 0 10px;color:#fff;font-size:clamp(30px,4vw,45px);line-height:1.03;letter-spacing:-.055em}
+.build-modal-description{max-width:420px;margin:0;color:#c4b9b1;font-size:13px;line-height:1.75}
+.modal-price{margin:22px 0 25px;color:#ff9866;font-size:29px;font-weight:800;letter-spacing:-.04em}
+.modal-price small{font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:#a99a90}
+.modal-includes-title{padding-bottom:12px;border-bottom:1px solid #ffffff24;color:#a99a90;font:8px 'DM Mono';letter-spacing:.16em}
+.modal-deliverables{display:grid;grid-template-columns:1fr 1fr;gap:13px 16px;list-style:none;padding:17px 0 25px;margin:0}
+.modal-deliverables li{display:flex;align-items:flex-start;gap:8px;color:#e7ddd5;font-size:10px;line-height:1.5}
+.modal-deliverables li svg{flex:none;color:#ff9866;margin-top:1px}
+.modal-footer{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-top:20px;border-top:1px solid #ffffff24}
+.modal-footer>span{color:#8f8279;font:7px 'DM Mono';letter-spacing:.1em;line-height:1.8}
+.modal-footer>span b{color:#f2d5c5;font-size:9px;letter-spacing:.02em}
+.modal-footer .button{white-space:nowrap;cursor:pointer;border:0}
+@keyframes modalFade{from{opacity:0}to{opacity:1}}
+@keyframes modalEnter{from{opacity:0;transform:translateY(28px) scale(.96);filter:blur(8px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+@keyframes modalOrbit{to{rotate:360deg}}
+@keyframes modalFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@media(max-width:700px){.build-modal{grid-template-columns:1fr;max-width:520px}.build-modal-visual{min-height:220px;max-height:240px}.modal-orbit-one{width:170px;height:170px}.modal-orbit-two{width:220px;height:115px}.modal-visual-icon{width:95px;height:95px}.modal-visual-icon svg{width:52px;height:52px}.modal-visual-code,.modal-visual-role{bottom:13px;font-size:6px}.build-modal-content{padding:28px 23px 23px}.build-modal-content h2{font-size:31px}.modal-price{margin:15px 0 18px;font-size:25px}.modal-deliverables{gap:10px;padding:14px 0 18px}.modal-deliverables li{font-size:9px}.modal-footer{align-items:flex-start;flex-direction:column}.modal-footer .button{width:100%;justify-content:center}}
+@media(prefers-reduced-motion:reduce){.modal-orbit-one,.modal-orbit-two,.modal-visual-icon,.modal-visual-icon:before,.modal-visual-icon:after{animation:none!important}}
