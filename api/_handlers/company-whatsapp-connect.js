@@ -46,17 +46,11 @@ export default async function handler(req,res){
       VALUES(${user.company_id},${wabaId},${String(selected.id)},${selected.display_phone_number||null},${encrypted},'pending',NOW(),NOW())
       ON CONFLICT(company_id) DO UPDATE SET business_account_id=EXCLUDED.business_account_id,phone_number_id=EXCLUDED.phone_number_id,
       display_phone=EXCLUDED.display_phone,encrypted_access_token=EXCLUDED.encrypted_access_token,status='pending',connected_at=NOW(),updated_at=NOW()`;
-    let registered=true,registrationMessage="WhatsApp Business account connected successfully.";
-    if(!registered&&/^\d{6}$/.test(pin)){
-      try{
-        const registration=await graph(String(selected.id)+"/register",token,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messaging_product:"whatsapp",pin})});
-        if(registration.success===true||registration.success==="true"){registered=true;registrationMessage="WhatsApp number connected and activated successfully.";}
-      }catch(error){registrationMessage="WhatsApp account is linked, but number activation needs attention: "+error.message+" You can retry the PIN below.";}
-    }
-    if(registered)await sql`UPDATE studio_company_whatsapp SET status='connected',updated_at=NOW() WHERE company_id=${user.company_id}`;
+    await sql`UPDATE studio_company_whatsapp SET status='connected',updated_at=NOW() WHERE company_id=${user.company_id}`;
+    const registrationMessage="WhatsApp Business account connected successfully.";
     await sql`INSERT INTO studio_company_settings(company_id) VALUES(${user.company_id}) ON CONFLICT(company_id) DO NOTHING`;
     await sql`INSERT INTO admin_audit(action,actor,entity_type,entity_id) VALUES('company.whatsapp.connected',${user.email},'company',${user.company_id})`;
-    return res.status(200).json({ok:true,connection:{status:registered?"connected":"pending",displayPhone:selected.display_phone_number||null,verifiedName:selected.verified_name||null},message:registrationMessage});
+    return res.status(200).json({ok:true,connection:{status:"connected",displayPhone:selected.display_phone_number||null,verifiedName:selected.verified_name||null},message:registrationMessage});
   }catch(error){
     console.error("Company WhatsApp connect failed:",error.message);
     return res.status(400).json({error:error.message||"Could not connect WhatsApp. Please try again."});
