@@ -16,6 +16,7 @@ export async function ensureCompanySchema(sql = db()) {
   )`;
   await sql`ALTER TABLE studio_companies ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ`;
   await sql`ALTER TABLE studio_companies ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE studio_companies ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ`;
   await sql`CREATE TABLE IF NOT EXISTS studio_company_users (
     id BIGSERIAL PRIMARY KEY, company_id BIGINT NOT NULL REFERENCES studio_companies(id) ON DELETE CASCADE,
     name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT, role TEXT NOT NULL DEFAULT 'employee'
@@ -105,7 +106,7 @@ export async function requireCompanyUser(req,res,roles=[]) {
     FROM studio_company_users u JOIN studio_companies c ON c.id=u.company_id
     WHERE u.id=${session.sub} AND u.company_id=${session.companyId} AND u.active=TRUE LIMIT 1`;
   const user=rows[0];
-  if(!user||user.company_status==='suspended'||(user.company_status==='trial'&&user.trial_ends_at&&new Date(user.trial_ends_at).getTime()<=Date.now())){res.status(401).json({error:"This company workspace is unavailable."});return null;}
+  if(!user||user.company_status==='suspended'||(user.company_status==='trial'&&user.trial_ends_at&&new Date(user.trial_ends_at).getTime()<=Date.now())||(user.company_status==='active'&&user.plan_expires_at&&new Date(user.plan_expires_at).getTime()<=Date.now())){res.status(401).json({error:"This company workspace is unavailable."});return null;}
   if(roles.length&&!roles.includes(user.role)){res.status(403).json({error:"You don't have permission for this action."});return null;}
   return user;
 }
