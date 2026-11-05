@@ -5,8 +5,8 @@ import { ensureSaasSchema } from "../_lib/saas-usage.js";
 async function activate(sql,orderId,paymentId,amount){
  const rows=await sql`SELECT p.id,p.company_id,p.plan_key,p.amount,p.currency,pl.billing_period FROM studio_saas_payments p JOIN studio_saas_plans pl ON pl.plan_key=p.plan_key WHERE p.provider_order_id=${orderId} LIMIT 1`;
  const p=rows[0];if(!p||Number(p.amount)*100!==Number(amount))throw new Error("Payment order does not match the subscription amount.");
- await sql`UPDATE studio_saas_payments SET provider_payment_id=${paymentId},status='paid',paid_at=COALESCE(paid_at,NOW()) WHERE id=${p.id} AND status<>'paid'`;
- await sql`UPDATE studio_companies SET plan=${p.plan_key},status='active',plan_expires_at=CASE WHEN ${p.billing_period}='yearly' THEN NOW()+INTERVAL '1 year' ELSE NOW()+INTERVAL '1 month' END,updated_at=NOW() WHERE id=${p.company_id}`;
+ const changed=await sql`UPDATE studio_saas_payments SET provider_payment_id=${paymentId},status='paid',paid_at=COALESCE(paid_at,NOW()) WHERE id=${p.id} AND status<>'paid' RETURNING id`;
+ if(changed.length)await sql`UPDATE studio_companies SET plan=${p.plan_key},status='active',plan_expires_at=CASE WHEN ${p.billing_period}='yearly' THEN NOW()+INTERVAL '1 year' ELSE NOW()+INTERVAL '1 month' END,updated_at=NOW() WHERE id=${p.company_id}`;
 }
 export default async function handler(req,res){
  res.setHeader("Cache-Control","no-store");if(!["GET","POST"].includes(req.method)){res.setHeader("Allow","GET, POST");return res.status(405).json({error:"Method not allowed"});}
