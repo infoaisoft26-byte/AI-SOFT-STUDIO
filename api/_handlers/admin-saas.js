@@ -78,7 +78,7 @@ export default async function handler(req,res){
   if(req.method==="POST"&&body.action==="meta.save"){
    const appId=String(body.appId||"").trim(),configId=String(body.configId||"").trim();
    const appSecret=String(body.appSecret||"").trim(),verifyToken=String(body.verifyToken||"").trim();
-   if(!/^\\d{5,30}$/.test(appId)||!/^\\d{5,40}$/.test(configId))return res.status(400).json({error:"Enter a valid numeric Meta App ID and Embedded Signup Configuration ID."});
+   if(!/^\d{5,30}$/.test(appId)||!/^\d{5,40}$/.test(configId))return res.status(400).json({error:"Enter a valid numeric Meta App ID and Embedded Signup Configuration ID."});
    if(!process.env.META_TOKEN_ENCRYPTION_KEY||process.env.META_TOKEN_ENCRYPTION_KEY.length<32)return res.status(503).json({error:"Platform encryption key is missing. Set META_TOKEN_ENCRYPTION_KEY (at least 32 characters) in Vercel before saving secrets."});
    const old=await getMetaConfig(sql);
    if(!appSecret&&!old.encrypted_app_secret&&!process.env.META_APP_SECRET)return res.status(400).json({error:"Meta App Secret is required for the authorization-code exchange."});
