@@ -1,9 +1,11 @@
 import { requireAdmin } from "../_lib/auth.js";
 import { db } from "../_lib/db.js";
 import { ensureCompanySchema } from "../_lib/company.js";
+import { ensureMetaConfig,getMetaConfig,encryptCompanyToken } from "../_lib/meta-config.js";
 
 async function init(sql){
  await ensureCompanySchema(sql);
+ await ensureMetaConfig(sql);
  await sql`CREATE TABLE IF NOT EXISTS studio_saas_settings(
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK(id=1),signup_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   trial_hours INTEGER NOT NULL DEFAULT 24,trial_message_quota INTEGER NOT NULL DEFAULT 50,
@@ -39,7 +41,7 @@ export default async function handler(req,res){
  try{
   const sql=db();await init(sql);
   if(req.method==="GET"){
-   const [settings,plans,companies,wa,messages,usage,payments,registrations,campaigns]=await Promise.all([
+   const [settings,plans,companies,wa,messages,usage,payments,registrations,campaigns,meta]=await Promise.all([
     sql`SELECT * FROM studio_saas_settings WHERE id=1`,
     sql`SELECT * FROM studio_saas_plans ORDER BY price ASC`,
     sql`SELECT c.id,c.name,c.owner_name,c.owner_email,c.plan,c.status,c.trial_started_at,c.trial_ends_at,c.created_at,
@@ -59,18 +61,34 @@ export default async function handler(req,res){
     sql`SELECT COUNT(*)::int AS total,COALESCE(SUM(quantity),0)::int AS quantity FROM studio_saas_usage WHERE created_at>=date_trunc('month',NOW())`,
     sql`SELECT p.id,p.company_id,c.name AS company_name,p.plan_key,p.provider,p.provider_payment_id,p.amount,p.currency,p.status,p.paid_at,p.created_at FROM studio_saas_payments p LEFT JOIN studio_companies c ON c.id=p.company_id ORDER BY p.created_at DESC LIMIT 500`,
     sql`SELECT date_trunc('day',created_at)::date AS day,COUNT(*)::int AS registrations FROM studio_companies WHERE created_at>=NOW()-INTERVAL '30 days' GROUP BY 1 ORDER BY 1`,
-    sql`SELECT status,COUNT(*)::int AS count FROM studio_company_messages WHERE direction='outbound' GROUP BY status`
+    sql`SELECT status,COUNT(*)::int AS count FROM studio_company_messages WHERE direction='outbound' GROUP BY status`,
+    getMetaConfig(sql)
    ]);
    const statusCounts=Object.fromEntries(companies.map(x=>[x.status,(companies.filter(y=>y.status===x.status).length)]));
    const waCounts=Object.fromEntries(wa.map(x=>[x.status,Number(x.count)]));
    const msgCounts=Object.fromEntries(messages.map(x=>[x.direction+"_"+x.status,Number(x.count)]));
-   return res.status(200).json({settings:settings[0],plans,companies,whatsapp:waCounts,messages:msgCounts,usage:usage[0],payments,registrations,campaigns,summary:{
+   return res.status(200).json({settings:settings[0],plans,companies,whatsapp:waCounts,messages:msgCounts,usage:usage[0],payments,registrations,campaigns,meta:{appId:meta.app_id||"",configId:meta.config_id||"",appSecretConfigured:Boolean(meta.encrypted_app_secret||process.env.META_APP_SECRET),verifyTokenConfigured:Boolean(meta.encrypted_verify_token||process.env.WHATSAPP_VERIFY_TOKEN),encryptionReady:Boolean(process.env.META_TOKEN_ENCRYPTION_KEY&&process.env.META_TOKEN_ENCRYPTION_KEY.length>=32)},summary:{
     totalCompanies:companies.length,activeCompanies:statusCounts.active||0,trialCompanies:statusCounts.trial||0,suspendedCompanies:statusCounts.suspended||0,
     connectedWhatsapp:waCounts.connected||0,notConnectedWhatsapp:companies.length-(waCounts.connected||0),
     totalMessages:Object.values(msgCounts).reduce((a,b)=>a+b,0),outboundMessages:msgCounts.outbound_sent||0,
     failedMessages:msgCounts.outbound_failed||0,totalContacts:companies.reduce((a,x)=>a+Number(x.contacts||0),0),
     paidRevenue:payments.filter(p=>p.status==="paid").reduce((a,p)=>a+Number(p.amount||0),0)
    }});
+  }
+  if(req.method==="POST"&&body.action==="meta.save"){
+   const appId=String(body.appId||"").trim(),configId=String(body.configId||"").trim();
+   const appSecret=String(body.appSecret||"").trim(),verifyToken=String(body.verifyToken||"").trim();
+   if(!/^\\d{5,30}$/.test(appId)||!/^\\d{5,40}$/.test(configId))return res.status(400).json({error:"Enter a valid numeric Meta App ID and Embedded Signup Configuration ID."});
+   if(!process.env.META_TOKEN_ENCRYPTION_KEY||process.env.META_TOKEN_ENCRYPTION_KEY.length<32)return res.status(503).json({error:"Platform encryption key is missing. Set META_TOKEN_ENCRYPTION_KEY (at least 32 characters) in Vercel before saving secrets."});
+   const old=await getMetaConfig(sql);
+   if(!appSecret&&!old.encrypted_app_secret&&!process.env.META_APP_SECRET)return res.status(400).json({error:"Meta App Secret is required for the authorization-code exchange."});
+   if(!verifyToken&&!old.encrypted_verify_token&&!process.env.WHATSAPP_VERIFY_TOKEN)return res.status(400).json({error:"Webhook verify token is required."});
+   const encryptedSecret=appSecret?encryptCompanyToken(appSecret):old.encrypted_app_secret||null;
+   const encryptedVerify=verifyToken?encryptCompanyToken(verifyToken):old.encrypted_verify_token||null;
+   await sql`UPDATE studio_meta_config SET app_id=${appId},config_id=${configId},encrypted_app_secret=${encryptedSecret},encrypted_verify_token=${encryptedVerify},updated_by=${admin.email},updated_at=NOW() WHERE id=1`;
+   await audit(sql,admin.email,"saas.meta.settings.updated",1);
+   const saved=await getMetaConfig(sql);
+   return res.status(200).json({ok:true,meta:{appId:saved.app_id,configId:saved.config_id,appSecretConfigured:Boolean(saved.encrypted_app_secret||process.env.META_APP_SECRET),verifyTokenConfigured:Boolean(saved.encrypted_verify_token||process.env.WHATSAPP_VERIFY_TOKEN),encryptionReady:true}});
   }
   if(req.method==="POST"&&body.action==="settings.save"){
    const hours=Math.max(1,Math.min(168,Number(body.trialHours)||24)),quota=Math.max(0,Math.min(100000,Number(body.trialMessageQuota)||0)),contacts=Math.max(0,Math.min(100000,Number(body.trialContactLimit)||0));
