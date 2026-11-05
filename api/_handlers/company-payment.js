@@ -9,11 +9,12 @@ async function activate(sql,orderId,paymentId,amount){
  await sql`UPDATE studio_companies SET plan=${p.plan_key},status='active',plan_expires_at=CASE WHEN ${p.billing_period}='yearly' THEN NOW()+INTERVAL '1 year' ELSE NOW()+INTERVAL '1 month' END,updated_at=NOW() WHERE id=${p.company_id}`;
 }
 export default async function handler(req,res){
- res.setHeader("Cache-Control","no-store");if(req.method!=="POST"){res.setHeader("Allow","POST");return res.status(405).json({error:"Method not allowed"});}
+ res.setHeader("Cache-Control","no-store");if(!["GET","POST"].includes(req.method)){res.setHeader("Allow","GET, POST");return res.status(405).json({error:"Method not allowed"});}
  const user=await requireCompanyUser(req,res,["owner"]);if(!user)return;
  let body={};try{body=typeof req.body==="string"?JSON.parse(req.body):req.body||{};}catch{return res.status(400).json({error:"Invalid JSON"});}
  try{
   const sql=db();await ensureCompanySchema(sql);await ensureSaasSchema(sql);await sql`ALTER TABLE studio_companies ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ`;
+  if(req.method==="GET"){const plans=await sql`SELECT plan_key,name,price,billing_period,message_quota,contact_limit,team_limit,campaign_limit FROM studio_saas_plans WHERE active=TRUE ORDER BY price ASC`;return res.status(200).json({plans,paymentConfigured:Boolean(process.env.RAZORPAY_KEY_ID&&process.env.RAZORPAY_KEY_SECRET)});}
   const key=process.env.RAZORPAY_KEY_ID,secret=process.env.RAZORPAY_KEY_SECRET;if(!key||!secret)return res.status(503).json({error:"Online payments are not configured yet."});
   if(body.action==="order.create"){
    const planKey=String(body.planKey||"");const plans=await sql`SELECT plan_key,name,price,billing_period,active FROM studio_saas_plans WHERE plan_key=${planKey} LIMIT 1`;const plan=plans[0];
