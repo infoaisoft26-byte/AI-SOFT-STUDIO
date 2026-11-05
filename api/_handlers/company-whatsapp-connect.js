@@ -28,16 +28,16 @@ export default async function handler(req,res){
     const appSecret=decryptMetaAppSecret(meta);
     const code=String(body.code||"").trim(),wabaId=String(body.wabaId||""),phoneNumberId=String(body.phoneNumberId||""),signupEvent=String(body.signupEvent||"").toUpperCase();
     if(code.length<20||code.length>4096)return res.status(400).json({error:"Meta signup code is missing or invalid. Please connect again."});
-    if(!idOk(wabaId)||!idOk(phoneNumberId)||signupEvent!=="FINISH")return res.status(400).json({error:"Meta did not confirm a completed WhatsApp setup. Please finish the Meta popup and try again."});
+    if(!idOk(wabaId)|| (phoneNumberId&&!idOk(phoneNumberId)) || signupEvent!=="FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING")return res.status(400).json({error:"Meta did not confirm a completed WhatsApp Business App Coexistence setup. Please finish the Meta popup and try again."});
     if(!metaReady(meta)||!appId||!appSecret||!process.env.META_TOKEN_ENCRYPTION_KEY||process.env.META_TOKEN_ENCRYPTION_KEY.length<32)
       return res.status(503).json({error:"WhatsApp connection is not fully configured yet. Ask the platform administrator to finish setup."});
     const params=new URLSearchParams({client_id:appId,client_secret:appSecret,code});
     const tokenData=await graph("oauth/access_token?"+params.toString(),"");
     const token=tokenData.access_token;
     if(!token)throw new Error("Meta did not return a business access token.");
-    const phoneData=await graph(wabaId+"/phone_numbers?fields=id,display_phone_number,verified_name&limit=100",token);
+    const phoneData=await graph(wabaId+"/phone_numbers?fields=id,display_phone_number,verified_name,is_on_biz_app,platform_type&limit=100",token);
     const phones=phoneData.data||[];
-    const selected=phones.find(x=>String(x.id)===phoneNumberId);
+    const selected=(phoneNumberId?phones.find(x=>String(x.id)===phoneNumberId):null)||phones.find(x=>x.is_on_biz_app===true)|| (phones.length===1?phones[0]:null);
     if(!selected)throw new Error("The selected WhatsApp phone number was not found in the connected business account.");
     const subscribed=await graph(wabaId+"/subscribed_apps",token,{method:"POST"});
     if(subscribed.success!==true)throw new Error("Meta did not confirm webhook subscription. Please retry the connection.");
