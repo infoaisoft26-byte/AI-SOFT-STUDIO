@@ -26,7 +26,7 @@ export default async function handler(req,res){
     const meta=await getMetaConfig(sql);
     const appId=meta.app_id||process.env.META_APP_ID||"";
     const appSecret=decryptMetaAppSecret(meta);
-    const code=String(body.code||"").trim(),wabaId=String(body.wabaId||""),phoneNumberId=String(body.phoneNumberId||""),pin=String(body.pin||"").trim(),signupEvent=String(body.signupEvent||"").toUpperCase();
+    const code=String(body.code||"").trim(),wabaId=String(body.wabaId||""),phoneNumberId=String(body.phoneNumberId||""),signupEvent=String(body.signupEvent||"").toUpperCase();
     if(code.length<20||code.length>4096)return res.status(400).json({error:"Meta signup code is missing or invalid. Please connect again."});
     if(!idOk(wabaId)||!idOk(phoneNumberId)||signupEvent!=="FINISH")return res.status(400).json({error:"Meta did not confirm a completed WhatsApp setup. Please finish the Meta popup and try again."});
     if(!metaReady(meta)||!appId||!appSecret||!process.env.META_TOKEN_ENCRYPTION_KEY||process.env.META_TOKEN_ENCRYPTION_KEY.length<32)
