@@ -61,7 +61,7 @@ export default async function handler(req,res){
     sql`SELECT COUNT(*)::int AS total,COALESCE(SUM(quantity),0)::int AS quantity FROM studio_saas_usage WHERE created_at>=date_trunc('month',NOW())`,
     sql`SELECT p.id,p.company_id,c.name AS company_name,p.plan_key,p.provider,p.provider_payment_id,p.amount,p.currency,p.status,p.paid_at,p.created_at FROM studio_saas_payments p LEFT JOIN studio_companies c ON c.id=p.company_id ORDER BY p.created_at DESC LIMIT 500`,
     sql`SELECT date_trunc('day',created_at)::date AS day,COUNT(*)::int AS registrations FROM studio_companies WHERE created_at>=NOW()-INTERVAL '30 days' GROUP BY 1 ORDER BY 1`,
-    sql`SELECT status,COUNT(*)::int AS count FROM studio_company_messages WHERE direction='outbound' GROUP BY status`
+    sql`SELECT c.id,c.name AS company_name,x.template_name,x.status,x.total_count,x.sent_count,x.delivered_count,x.read_count,x.failed_count,x.created_at FROM studio_whatsapp_campaigns x JOIN studio_companies c ON c.id=x.company_id ORDER BY x.created_at DESC LIMIT 500`
    ]);
    const statusCounts=Object.fromEntries(companies.map(x=>[x.status,(companies.filter(y=>y.status===x.status).length)]));
    const waCounts=Object.fromEntries(wa.map(x=>[x.status,Number(x.count)]));
