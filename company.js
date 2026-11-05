@@ -48,6 +48,8 @@ async function launchWhatsAppSignup(){
     override_default_response_type:true,
     extras:{
      version:"v4",
+     featureType:"whatsapp_business_app_onboarding",
+     sessionInfoVersion:"3",
      setup:{
       business:{id:null,name:"AISOFTStudio",phone:{},address:{},timezone:null},
       phone:{category:null,description:""}
