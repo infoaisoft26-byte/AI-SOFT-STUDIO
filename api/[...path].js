@@ -17,6 +17,8 @@ import companyWhatsappMessages from "./_handlers/company-whatsapp-messages.js";
 import companyWhatsappRegister from "./_handlers/company-whatsapp-register.js";
 import companyWorkspace from "./_handlers/company-workspace.js";
 import enquiries from "./_handlers/enquiries.js";
+import companyPayment from "./_handlers/company-payment.js";
+import razorpayWebhook from "./_handlers/razorpay-webhook.js";
 import whatsappWebhook from "./_handlers/whatsapp-webhook.js";
 
 const routes = new Map([
@@ -29,6 +31,8 @@ const routes = new Map([
   ["/api/admin/workspace", adminWorkspace],
   ["/api/company/auth", companyAuth],
   ["/api/company/contacts", companyContacts],
+  ["/api/company/payment", companyPayment],
+  ["/api/payments/razorpay/webhook", razorpayWebhook],
   ["/api/company/campaigns", companyCampaigns],
   ["/api/cron/whatsapp-campaigns", campaignWorker],
   ["/api/company/register", companyRegister],
