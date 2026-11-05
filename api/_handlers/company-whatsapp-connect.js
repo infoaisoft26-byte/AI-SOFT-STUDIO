@@ -46,7 +46,7 @@ export default async function handler(req,res){
       VALUES(${user.company_id},${wabaId},${String(selected.id)},${selected.display_phone_number||null},${encrypted},'pending',NOW(),NOW())
       ON CONFLICT(company_id) DO UPDATE SET business_account_id=EXCLUDED.business_account_id,phone_number_id=EXCLUDED.phone_number_id,
       display_phone=EXCLUDED.display_phone,encrypted_access_token=EXCLUDED.encrypted_access_token,status='pending',connected_at=NOW(),updated_at=NOW()`;
-    let registered=false,registrationMessage="WhatsApp account linked. Enter the business number's 6-digit two-step verification PIN to finish activation.";
+    let registered=body.coexistence===true,registrationMessage="WhatsApp account linked. Enter the business number's 6-digit two-step verification PIN to finish activation.";
     if(/^\d{6}$/.test(pin)){
       try{
         const registration=await graph(String(selected.id)+"/register",token,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messaging_product:"whatsapp",pin})});
