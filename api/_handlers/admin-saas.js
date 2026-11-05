@@ -66,13 +66,20 @@ export default async function handler(req,res){
    const statusCounts=Object.fromEntries(companies.map(x=>[x.status,(companies.filter(y=>y.status===x.status).length)]));
    const waCounts=Object.fromEntries(wa.map(x=>[x.status,Number(x.count)]));
    const msgCounts=Object.fromEntries(messages.map(x=>[x.direction+"_"+x.status,Number(x.count)]));
-   return res.status(200).json({settings:settings[0],plans,companies,whatsapp:waCounts,messages:msgCounts,usage:usage[0],payments,registrations,campaigns,summary:{
+   return res.status(200).json({settings:settings[0],metaSetup:{appSecretConfigured:Boolean(process.env.META_APP_SECRET),tokenEncryptionConfigured:Boolean(process.env.META_TOKEN_ENCRYPTION_KEY&&process.env.META_TOKEN_ENCRYPTION_KEY.length>=32),webhookVerifyConfigured:Boolean(process.env.WHATSAPP_VERIFY_TOKEN)},plans,companies,whatsapp:waCounts,messages:msgCounts,usage:usage[0],payments,registrations,campaigns,summary:{
     totalCompanies:companies.length,activeCompanies:statusCounts.active||0,trialCompanies:statusCounts.trial||0,suspendedCompanies:statusCounts.suspended||0,
     connectedWhatsapp:waCounts.connected||0,notConnectedWhatsapp:companies.length-(waCounts.connected||0),
     totalMessages:Object.values(msgCounts).reduce((a,b)=>a+b,0),outboundMessages:msgCounts.outbound_sent||0,
     failedMessages:msgCounts.outbound_failed||0,totalContacts:companies.reduce((a,x)=>a+Number(x.contacts||0),0),
     paidRevenue:payments.filter(p=>p.status==="paid").reduce((a,p)=>a+Number(p.amount||0),0)
    }});
+  }
+  if(req.method==="POST"&&body.action==="meta.save"){
+   const appId=String(body.metaAppId||"").trim(),configId=String(body.metaConfigId||"").trim();
+   if(!/^\\d{5,30}$/.test(appId)||!/^\\d{5,40}$/.test(configId))return res.status(400).json({error:"Enter a valid numeric Meta App ID and Embedded Signup Configuration ID."});
+   const rows=await sql`UPDATE studio_saas_settings SET meta_app_id=${appId},meta_config_id=${configId},updated_at=NOW() WHERE id=1 RETURNING meta_app_id,meta_config_id`;
+   await audit(sql,admin.email,"saas.meta.settings.updated",1);
+   return res.status(200).json({ok:true,metaSetup:rows[0]});
   }
   if(req.method==="POST"&&body.action==="settings.save"){
    const hours=Math.max(1,Math.min(168,Number(body.trialHours)||24)),quota=Math.max(0,Math.min(100000,Number(body.trialMessageQuota)||0)),contacts=Math.max(0,Math.min(100000,Number(body.trialContactLimit)||0));
