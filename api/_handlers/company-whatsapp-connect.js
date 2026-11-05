@@ -1,5 +1,6 @@
 import { db } from "../_lib/db.js";
 import { ensureCompanySchema,requireCompanyUser,encryptCompanyToken } from "../_lib/company.js";
+import { ensureSaasSchema } from "../_lib/saas-usage.js";
 
 const version=process.env.WHATSAPP_GRAPH_API_VERSION||"v26.0";
 const idOk=v=>/^\d{5,30}$/.test(String(v||""));
@@ -15,18 +16,21 @@ export default async function handler(req,res){
   if(!["GET","POST"].includes(req.method)){res.setHeader("Allow","GET, POST");return res.status(405).json({error:"Method not allowed"});}
   const user=await requireCompanyUser(req,res,req.method==="GET"?[]:["owner"]);if(!user)return;
   try{
-    const sql=db();await ensureCompanySchema(sql);
+    const sql=db();await ensureCompanySchema(sql);await ensureSaasSchema(sql);
     if(req.method==="GET"){
-      const rows=await sql`SELECT status,display_phone,connected_at FROM studio_company_whatsapp WHERE company_id=${user.company_id} LIMIT 1`;
-      return res.status(200).json({enabled:Boolean(process.env.META_APP_ID&&process.env.META_WHATSAPP_CONFIG_ID&&process.env.META_APP_SECRET&&process.env.META_TOKEN_ENCRYPTION_KEY),appId:process.env.META_APP_ID||null,configId:process.env.META_WHATSAPP_CONFIG_ID||null,connection:rows[0]||{status:"not_connected",display_phone:null}});
+      const [rows,settings]=await Promise.all([sql`SELECT status,display_phone,connected_at FROM studio_company_whatsapp WHERE company_id=${user.company_id} LIMIT 1`,sql`SELECT meta_app_id,meta_config_id FROM studio_saas_settings WHERE id=1 LIMIT 1`]);
+      const appId=settings[0]?.meta_app_id||process.env.META_APP_ID||null,configId=settings[0]?.meta_config_id||process.env.META_WHATSAPP_CONFIG_ID||null;
+      return res.status(200).json({enabled:Boolean(appId&&configId&&process.env.META_APP_SECRET&&process.env.META_TOKEN_ENCRYPTION_KEY&&process.env.META_TOKEN_ENCRYPTION_KEY.length>=32),appId,configId,connection:rows[0]||{status:"not_connected",display_phone:null}});
     }
     const body=typeof req.body==="string"?JSON.parse(req.body):req.body||{};
     const code=String(body.code||"").trim(),wabaId=String(body.wabaId||""),phoneNumberId=String(body.phoneNumberId||""),pin=String(body.pin||"").trim();
     if(code.length<20||code.length>4096)return res.status(400).json({error:"Meta signup code is missing or invalid. Please connect again."});
     if(!idOk(wabaId))return res.status(400).json({error:"WhatsApp Business Account could not be identified. Please repeat signup and finish the Meta popup."});
-    if(!process.env.META_APP_ID||!process.env.META_APP_SECRET||!process.env.META_TOKEN_ENCRYPTION_KEY||process.env.META_TOKEN_ENCRYPTION_KEY.length<32)
+    const metaSettings=await sql`SELECT meta_app_id,meta_config_id FROM studio_saas_settings WHERE id=1 LIMIT 1`;
+    const metaAppId=metaSettings[0]?.meta_app_id||process.env.META_APP_ID,metaConfigId=metaSettings[0]?.meta_config_id||process.env.META_WHATSAPP_CONFIG_ID;
+    if(!metaAppId||!metaConfigId||!process.env.META_APP_SECRET||!process.env.META_TOKEN_ENCRYPTION_KEY||process.env.META_TOKEN_ENCRYPTION_KEY.length<32)
       return res.status(503).json({error:"WhatsApp connection is not fully configured yet. Ask the platform administrator to finish setup."});
-    const params=new URLSearchParams({client_id:process.env.META_APP_ID,client_secret:process.env.META_APP_SECRET,code});
+    const params=new URLSearchParams({client_id:metaAppId,client_secret:process.env.META_APP_SECRET,code});
     const tokenData=await graph("oauth/access_token?"+params.toString(),"");
     const token=tokenData.access_token;
     if(!token)throw new Error("Meta did not return a business access token.");
