@@ -11,6 +11,6 @@ export default async function handler(req,res){
       sql`SELECT status,display_phone FROM studio_company_whatsapp WHERE company_id=${user.company_id} LIMIT 1`,
       sql`SELECT COUNT(*)::int AS employees FROM studio_company_users WHERE company_id=${user.company_id} AND active=TRUE`
     ]);
-    return res.status(200).json({company:{id:user.company_id,name:user.company_name},user:{id:user.id,name:user.name,email:user.email,role:user.role},metrics:{contacts:counts[0].contacts,employees:members[0].employees},whatsapp:account[0]||{status:"not_connected",display_phone:null}});
+    return res.status(200).json({company:{id:user.company_id,name:user.company_name,status:user.company_status,trialEndsAt:user.trial_ends_at||null},user:{id:user.id,name:user.name,email:user.email,role:user.role},metrics:{contacts:counts[0].contacts,employees:members[0].employees},whatsapp:account[0]||{status:"not_connected",display_phone:null}});
   }catch(error){console.error("Company workspace failed:",error.message);return res.status(503).json({error:"Workspace could not be loaded."});}
 }

@@ -11,8 +11,11 @@ export async function ensureCompanySchema(sql = db()) {
     owner_name TEXT NOT NULL, owner_email TEXT NOT NULL,
     plan TEXT NOT NULL DEFAULT 'starter', status TEXT NOT NULL DEFAULT 'active'
       CHECK(status IN ('active','suspended','trial')),
+    trial_started_at TIMESTAMPTZ, trial_ends_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`;
+  await sql`ALTER TABLE studio_companies ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE studio_companies ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ`;
   await sql`CREATE TABLE IF NOT EXISTS studio_company_users (
     id BIGSERIAL PRIMARY KEY, company_id BIGINT NOT NULL REFERENCES studio_companies(id) ON DELETE CASCADE,
     name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT, role TEXT NOT NULL DEFAULT 'employee'
@@ -98,11 +101,11 @@ export async function requireCompanyUser(req,res,roles=[]) {
   if(!session){res.status(401).json({error:"Please sign in to your company workspace."});return null;}
   const sql=db();
   await ensureCompanySchema(sql);
-  const rows=await sql`SELECT u.id,u.company_id,u.name,u.email,u.role,u.active,c.name AS company_name,c.status AS company_status
+  const rows=await sql`SELECT u.id,u.company_id,u.name,u.email,u.role,u.active,c.name AS company_name,c.status AS company_status,c.trial_ends_at
     FROM studio_company_users u JOIN studio_companies c ON c.id=u.company_id
     WHERE u.id=${session.sub} AND u.company_id=${session.companyId} AND u.active=TRUE LIMIT 1`;
   const user=rows[0];
-  if(!user||user.company_status==='suspended'){res.status(401).json({error:"This company workspace is unavailable."});return null;}
+  if(!user||user.company_status==='suspended'||(user.company_status==='trial'&&user.trial_ends_at&&new Date(user.trial_ends_at).getTime()<=Date.now())){res.status(401).json({error:"This company workspace is unavailable."});return null;}
   if(roles.length&&!roles.includes(user.role)){res.status(403).json({error:"You don't have permission for this action."});return null;}
   return user;
 }
