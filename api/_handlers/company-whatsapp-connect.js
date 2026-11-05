@@ -26,9 +26,9 @@ export default async function handler(req,res){
     const meta=await getMetaConfig(sql);
     const appId=meta.app_id||process.env.META_APP_ID||"";
     const appSecret=decryptMetaAppSecret(meta);
-    const code=String(body.code||"").trim(),wabaId=String(body.wabaId||""),phoneNumberId=String(body.phoneNumberId||""),pin=String(body.pin||"").trim();
+    const code=String(body.code||"").trim(),wabaId=String(body.wabaId||""),phoneNumberId=String(body.phoneNumberId||""),pin=String(body.pin||"").trim(),signupEvent=String(body.signupEvent||"").toUpperCase();
     if(code.length<20||code.length>4096)return res.status(400).json({error:"Meta signup code is missing or invalid. Please connect again."});
-    if(!idOk(wabaId))return res.status(400).json({error:"WhatsApp Business Account could not be identified. Please repeat signup and finish the Meta popup."});
+    if(!idOk(wabaId)||!idOk(phoneNumberId)||signupEvent!=="FINISH")return res.status(400).json({error:"Meta did not confirm a completed WhatsApp setup. Please finish the Meta popup and try again."});
     if(!metaReady(meta)||!appId||!appSecret||!process.env.META_TOKEN_ENCRYPTION_KEY||process.env.META_TOKEN_ENCRYPTION_KEY.length<32)
       return res.status(503).json({error:"WhatsApp connection is not fully configured yet. Ask the platform administrator to finish setup."});
     const params=new URLSearchParams({client_id:appId,client_secret:appSecret,code});
@@ -37,7 +37,7 @@ export default async function handler(req,res){
     if(!token)throw new Error("Meta did not return a business access token.");
     const phoneData=await graph(wabaId+"/phone_numbers?fields=id,display_phone_number,verified_name&limit=100",token);
     const phones=phoneData.data||[];
-    const selected=phoneNumberId?phones.find(x=>String(x.id)===phoneNumberId):phones[0];
+    const selected=phones.find(x=>String(x.id)===phoneNumberId);
     if(!selected)throw new Error("The selected WhatsApp phone number was not found in the connected business account.");
     const subscribed=await graph(wabaId+"/subscribed_apps",token,{method:"POST"});
     if(subscribed.success!==true)throw new Error("Meta did not confirm webhook subscription. Please retry the connection.");
@@ -46,7 +46,7 @@ export default async function handler(req,res){
       VALUES(${user.company_id},${wabaId},${String(selected.id)},${selected.display_phone_number||null},${encrypted},'pending',NOW(),NOW())
       ON CONFLICT(company_id) DO UPDATE SET business_account_id=EXCLUDED.business_account_id,phone_number_id=EXCLUDED.phone_number_id,
       display_phone=EXCLUDED.display_phone,encrypted_access_token=EXCLUDED.encrypted_access_token,status='pending',connected_at=NOW(),updated_at=NOW()`;
-    let registered=body.coexistence===true,registrationMessage=registered?"WhatsApp Business App Coexistence connected successfully.":"WhatsApp account linked. Enter your 6-digit WhatsApp PIN to finish activation.";
+    let registered=true,registrationMessage="WhatsApp Business account connected successfully.";
     if(!registered&&/^\d{6}$/.test(pin)){
       try{
         const registration=await graph(String(selected.id)+"/register",token,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messaging_product:"whatsapp",pin})});
