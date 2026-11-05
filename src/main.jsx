@@ -58,7 +58,8 @@ function EnquiryForm() {
 
 function App() {
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [activeRoom, setActiveRoom] = React.useState(0);\n  const [visitorStep, setVisitorStep] = React.useState(0);
+  const [activeRoom, setActiveRoom] = React.useState(0);
+  const [visitorStep, setVisitorStep] = React.useState(0);
   React.useEffect(() => {
     const nodes = document.querySelectorAll('[data-reveal]');
     const observer = new IntersectionObserver(entries => entries.forEach(entry => {
