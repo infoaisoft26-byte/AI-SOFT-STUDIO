@@ -76,8 +76,9 @@ export default async function handler(req,res){
   }
   if(req.method==="POST"&&body.action==="settings.save"){
    const hours=Math.max(1,Math.min(168,Number(body.trialHours)||24)),quota=Math.max(0,Math.min(100000,Number(body.trialMessageQuota)||0)),contacts=Math.max(0,Math.min(100000,Number(body.trialContactLimit)||0));
+   const teamLimit=Math.max(0,Math.min(1000,Number(body.trialTeamLimit)||0)),campaignLimit=Math.max(0,Math.min(10000,Number(body.trialCampaignLimit)||0));
    const enabled=body.signupEnabled===true;
-   const rows=await sql`UPDATE studio_saas_settings SET signup_enabled=${enabled},trial_hours=${hours},trial_message_quota=${quota},trial_contact_limit=${contacts},currency='INR',updated_at=NOW() WHERE id=1 RETURNING *`;
+   const rows=await sql`UPDATE studio_saas_settings SET signup_enabled=${enabled},trial_hours=${hours},trial_message_quota=${quota},trial_contact_limit=${contacts},trial_team_limit=${teamLimit},trial_campaign_limit=${campaignLimit},currency='INR',updated_at=NOW() WHERE id=1 RETURNING *`;
    await audit(sql,admin.email,"saas.settings.updated",1);return res.status(200).json({ok:true,settings:rows[0]});
   }
   if(req.method==="POST"&&body.action==="plan.save"){
