@@ -31,7 +31,7 @@ const departments = [
   { no:'06', role:'QA & Delivery', title:'Ready for the real world.', desc:'Device checks, quality review, launch preparation and handover.', icon:ShieldCheck, tag:'QUALITY CONTROL' }
 ];
 
-function EnquiryForm() {
+function EnquiryForm({ initialService = '' }) {
   const [status, setStatus] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   async function submit(e) {
@@ -48,7 +48,7 @@ function EnquiryForm() {
   }
   return <form className="enquiry-form" onSubmit={submit}>
     <div className="form-row"><input name="name" placeholder="Your name" required maxLength="120"/><input name="email" type="email" placeholder="Email address" required maxLength="180"/></div>
-    <div className="form-row"><input name="phone" placeholder="Phone / WhatsApp"/><select name="service" defaultValue=""><option value="">Choose a department / service</option>{services.map(s=><option key={s[0]}>{s[0]}</option>)}</select></div>
+    <div className="form-row"><input name="phone" placeholder="Phone / WhatsApp"/><select name="service" value={initialService} onChange={()=>{}}><option value="">Choose a department / service</option>{services.map(s=><option key={s[0]}>{s[0]}</option>)}</select></div>
     <select name="budget" defaultValue=""><option value="">Project budget (optional)</option><option>Under ₹10,000</option><option>₹10,000 – ₹30,000</option><option>₹30,000 – ₹75,000</option><option>₹75,000 – ₹1,50,000</option><option>₹1,50,000+</option></select>
     <textarea name="message" placeholder="What are we building together?" required minLength="10" maxLength="4000" rows="4"/>
     <button className="button button-dark" disabled={busy}>{busy ? 'Sending brief…' : 'Send project brief'} <ArrowUpRight size={17}/></button>
@@ -60,7 +60,10 @@ function App() {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [activeRoom, setActiveRoom] = React.useState(0);
   const [visitorStep, setVisitorStep] = React.useState(0);
+  const [selectedService, setSelectedService] = React.useState(null);
   React.useEffect(() => {
+    const onKeyDown = e => { if (e.key === 'Escape') setSelectedService(null); };
+    window.addEventListener('keydown', onKeyDown);
     const nodes = document.querySelectorAll('[data-reveal]');
     const observer = new IntersectionObserver(entries => entries.forEach(entry => {
       if (entry.isIntersecting) { entry.target.classList.add('is-visible'); observer.unobserve(entry.target); }
@@ -76,7 +79,7 @@ function App() {
       stage.style.setProperty('--pointer-y', (y * -5).toFixed(2) + 'deg');
     };
     window.addEventListener('pointermove', onPointer, { passive:true });
-    return () => { observer.disconnect(); window.removeEventListener('pointermove', onPointer); };
+    return () => { observer.disconnect(); window.removeEventListener('pointermove', onPointer); window.removeEventListener('keydown', onKeyDown); };
   }, []);
 
   const goTo = id => { setMenuOpen(false); document.getElementById(id)?.scrollIntoView({ behavior:'smooth' }); };
@@ -146,7 +149,7 @@ function App() {
       <section className="services-section" id="services">
         <div className="section-topline"><span>04 / THE BUILD FLOOR</span><span>FROM FIRST PIXEL TO FULL PLATFORM</span></div>
         <div className="services-heading" data-reveal><div><div className="kicker">WHAT WE CAN MAKE TOGETHER</div><h2>Pick your starting<br/><em>point.</em></h2></div><p>Websites, applications, platforms and automation. Choose a direction and we'll help shape the right solution.</p></div>
-        <div className="services-grid">{services.map((s,i)=><article className="service-card" key={s[0]} data-reveal><div className="service-card-head"><span>BUILD / {String(i+1).padStart(2,'0')}</span><ArrowUpRight size={17}/></div><div className="service-icon">{[<Monitor/>,<Layers3/>,<Workflow/>,<BriefcaseBusiness/>,<ShieldCheck/>,<Sparkles/>,<Smartphone/>,<Cpu/>][i%8]}</div><h3>{s[0]}</h3><p>{s[2]}</p><div className="service-price">{s[1]} <small>onwards</small></div><a href="#contact" onClick={()=>{}}>Discuss this build <ArrowRight size={14}/></a></article>)}</div>
+        <div className="services-grid">{services.map((s,i)=>{const ServiceIcon=[Monitor,Layers3,Workflow,BriefcaseBusiness,ShieldCheck,Sparkles,Smartphone,Cpu,MessageCircle,Workflow,Monitor,Cpu][i];return <button type="button" className="service-card service-card-button" key={s[0]} data-reveal onClick={()=>setSelectedService(i)} aria-label={`Explore ${s[0]}`}><div className="service-card-head"><span>BUILD / {String(i+1).padStart(2,'0')}</span><ArrowUpRight size={17}/></div><div className="service-icon"><ServiceIcon size={26} strokeWidth={1.35}/></div><h3>{s[0]}</h3><p>{s[2]}</p><div className="service-price">{s[1]} <small>onwards</small></div><span className="service-open-label">Explore build <ArrowRight size={14}/></span></button>})}</div>
       </section>
 
       <section className="lab-section">
@@ -160,8 +163,9 @@ function App() {
         <div className="process-track">{[['01','Meet','We hear the idea and understand the outcome you want.'],['02','Map','We define scope, features, timeline and investment.'],['03','Make','Design and development turn the plan into a product.'],['04','Test','We check the details across screens and workflows.'],['05','Launch','Your product goes live with a clear handover.']].map((p,i)=><div className="process-step" key={p[0]} data-reveal><span className="step-number">{p[0]}</span><div className="step-node"/><h3>{p[1]}</h3><p>{p[2]}</p></div>)}</div>
       </section>
 
+      {selectedService !== null && (()=>{const s=services[selectedService];const Icon=[Monitor,Layers3,Workflow,BriefcaseBusiness,ShieldCheck,Sparkles,Smartphone,Cpu,MessageCircle,Workflow,Monitor,Cpu][selectedService];const roles=['Website Design Team','Creative & Motion Team','Product Engineering Team','Commerce Experience Team','Finance Product Team','Gaming Experience Team','Mobile App Team','Business Systems Team','WhatsApp Automation Team','Social Automation Team','Business Integration Team','AI Workflow Team'];const deliverables=[['Up to 5 responsive pages','Mobile-first layout','Contact & enquiry integration','Launch-ready SEO foundations'],['Original visual direction','Premium interactions & motion','Responsive page system','Performance-focused build'],['Role-based dashboards','Secure records & workflows','Admin reporting views','Operational controls'],['Product catalogue & filters','Cart and checkout flow','Order management','Admin product controls'],['Member dashboard experience','Wallet & transaction views','Admin management tools','Structured data workflows'],['Gaming-style visual identity','Profiles & leaderboards','Tournament / event screens','Responsive gaming portal'],['Android-ready app experience','Core screens & navigation','API / backend integration','Release preparation'],['Custom user workflows','Dashboards & data views','Authentication & roles','Business integrations'],['Approved messaging workflows','Customer conversation views','Template & campaign tools','Delivery status visibility'],['Social workflow design','Business messaging tools','Account integrations','Activity & reporting views'],['Page enquiry capture','Lead management views','Business integrations','Admin workflows'],['AI-assisted task workflows','Custom process automation','App / API connections','Human review controls']][selectedService];return <div className="build-modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedService(null)}}><section className="build-modal" role="dialog" aria-modal="true" aria-labelledby="build-modal-title"><button className="build-modal-close" onClick={()=>setSelectedService(null)} aria-label="Close details"><X size={20}/></button><div className="build-modal-visual"><div className="modal-visual-grid"/><div className="modal-orbit modal-orbit-one"/><div className="modal-orbit modal-orbit-two"/><div className="modal-visual-icon"><Icon size={76} strokeWidth={1}/></div><span className="modal-visual-code">AI / STUDIO / BUILD {String(selectedService+1).padStart(2,'0')}</span><span className="modal-visual-role">{roles[selectedService]}</span></div><div className="build-modal-content"><span className="visit-eyebrow">BUILD / {String(selectedService+1).padStart(2,'0')} · PROJECT OVERVIEW</span><h2 id="build-modal-title">{s[0]}</h2><p className="build-modal-description">{s[2]}</p><div className="modal-price">{s[1]} <small>onwards</small></div><div className="modal-includes-title">WHAT THE TEAM CAN BUILD</div><ul className="modal-deliverables">{deliverables.map(item=><li key={item}><Check size={15}/>{item}</li>)}</ul><div className="modal-footer"><span>YOUR PROJECT TEAM<br/><b>{roles[selectedService]}</b></span><button className="button button-orange" onClick={()=>{setSelectedService(null);setTimeout(()=>{document.getElementById('contact')?.scrollIntoView({behavior:'smooth'});},80);}}>Discuss this build <ArrowUpRight size={16}/></button></div></div></section></div>})()}
       <section className="contact-section" id="contact">
-        <div className="contact-terminal"><div className="terminal-top"><span><i/><i/><i/></span><b>AI_SOFT_STUDIO / NEW_PROJECT</b><span>SECURE ENQUIRY</span></div><div className="terminal-body"><div className="terminal-prompt"><span>visitor@studio:~$</span> start a_project</div><h2>Let's build<br/><em>something real.</em></h2><p>Leave your brief at the desk. Our team will review it and get back to you about the next step.</p><EnquiryForm/></div><div className="terminal-foot"><span>END OF TOUR / BEGINNING OF SOMETHING</span><span>AI SOFT STUDIO © {new Date().getFullYear()}</span></div></div>
+        <div className="contact-terminal"><div className="terminal-top"><span><i/><i/><i/></span><b>AI_SOFT_STUDIO / NEW_PROJECT</b><span>SECURE ENQUIRY</span></div><div className="terminal-body"><div className="terminal-prompt"><span>visitor@studio:~$</span> start a_project</div><h2>Let's build<br/><em>something real.</em></h2><p>Leave your brief at the desk. Our team will review it and get back to you about the next step.</p><EnquiryForm initialService={selectedService === null ? '' : services[selectedService][0]}/></div><div className="terminal-foot"><span>END OF TOUR / BEGINNING OF SOMETHING</span><span>AI SOFT STUDIO © {new Date().getFullYear()}</span></div></div>
       </section>
     </main>
 
