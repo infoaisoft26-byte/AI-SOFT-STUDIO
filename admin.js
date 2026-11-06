@@ -1,98 +1,37 @@
-const $ = (id) => document.getElementById(id);
-const login = $("login"), dashboard = $("dashboard");
-let allEnquiries = [], summaryStats = null, toastTimer;
-async function api(url, options = {}) {
-  const response = await fetch(url, { credentials:"same-origin", headers:{"Content-Type":"application/json",...(options.headers||{})}, ...options });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "Request failed. Please try again.");
-  return data;
+const $=id=>document.getElementById(id);
+const state={tab:"overview",data:null,enquiries:[],loading:false};
+const titles={overview:"Business overview",enquiries:"Enquiry CRM",clients:"Client records",projects:"Project management",payments:"Payments & revenue",services:"Services & pricing",automation:"Social media automation",campaigns:"Bulk SMS campaigns",aibot:"AI assistant",webhosting:"Websites, hosting & domains",settings:"Admin settings"};
+async function api(url,options={}){const r=await fetch(url,{credentials:"same-origin",headers:{"Content-Type":"application/json",...(options.headers||{})},...options});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||"Request failed");return d}
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money=v=>"₹"+Number(v||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+function toast(msg,error=false){const el=$("toast");el.textContent=msg;el.classList.toggle("bad",error);el.classList.remove("hidden");setTimeout(()=>el.classList.add("hidden"),3500)}
+async function load(){state.loading=true;try{state.data=await api("/api/admin/workspace");if(state.tab==="enquiries")state.enquiries=(await api("/api/admin/enquiries")).enquiries||[];render()}catch(e){$("content").innerHTML='<div class="empty-state">'+esc(e.message)+'</div>';toast(e.message,true)}finally{state.loading=false}}
+function stat(label,value,note=""){return '<article class="stat"><span>'+label+'</span><strong>'+value+'</strong><small>'+note+'</small></article>'}
+function table(headers,rows,empty){return '<div class="table-wrap"><table><thead><tr>'+headers.map(x=>'<th>'+x+'</th>').join("")+'</tr></thead><tbody>'+(rows.length?rows.join(""):'<tr><td colspan="'+headers.length+'" class="empty">'+empty+'</td></tr>')+'</tbody></table></div>'}
+function render(){
+ const d=state.data||{},o=d.overview||{},c=$("content");$("page-title").textContent=titles[state.tab];$("crumb").textContent=state.tab.toUpperCase();
+ if(state.tab==="overview"){c.innerHTML='<div class="welcome"><div><p class="eyebrow">YOUR BUSINESS AT A GLANCE</p><h2>Build. Manage. <em>Grow.</em></h2><p class="muted">A single workspace for your studio operations and customer pipeline.</p></div><span class="date-chip">'+new Date().toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})+'</span></div><div class="stats">'+stat("TOTAL ENQUIRIES",o.enquiries,"New leads: "+(o.newEnquiries||0))+stat("CLIENTS",o.clients,"Registered client records")+stat("ACTIVE PROJECTS",o.activeProjects,"Currently in progress")+stat("PENDING WORK",o.pendingProjects,"Planning, review or on hold")+stat("REVENUE",money(o.revenue),"Payments marked as paid")+stat("PENDING PAYMENTS",money(o.pendingPayments),"Awaiting payment")+'</div><div class="section-grid"><section class="panel"><div class="panel-head"><div><p class="eyebrow">DELIVERY</p><h3>Project snapshot</h3></div><button class="text-btn" data-go="projects">Manage projects →</button></div><div class="progress-row"><span>Planning / review / hold</span><b>'+(o.pendingProjects||0)+'</b></div><div class="progress-row"><span>In progress</span><b>'+(o.activeProjects||0)+'</b></div><div class="progress-row"><span>Delivered</span><b>'+(o.deliveredProjects||0)+'</b></div></section><section class="panel"><div class="panel-head"><div><p class="eyebrow">CONNECTED SERVICES</p><h3>Integration readiness</h3></div><button class="text-btn" data-go="automation">View connections →</button></div>'+integrationList(d.integrations)+'</section></div>'}
+ if(state.tab==="enquiries"){const rows=state.enquiries.map(x=>'<tr><td><b>'+esc(x.name)+'</b><small>'+esc(x.email)+' · '+esc(x.phone||"No phone")+'</small></td><td>'+esc(x.service||"General")+'<small>'+esc(x.budget||"Budget not shared")+'</small></td><td>'+esc(x.message)+'</td><td>'+new Date(x.created_at).toLocaleDateString()+'</td><td><select class="status-select" data-enquiry="'+x.id+'">'+["new","contacted","qualified","closed","spam"].map(s=>'<option '+(x.status===s?"selected":"")+' value="'+s+'">'+s+'</option>').join("")+'</select></td><td><a href="mailto:'+encodeURIComponent(x.email)+'">Email</a> '+(x.phone?'<a target="_blank" rel="noopener" href="https://wa.me/'+String(x.phone).replace(/\D/g,"")+'">WhatsApp</a>':"")+'</td></tr>');c.innerHTML='<div class="toolbar"><p class="muted">All website enquiries, customer details and lead follow-up status.</p><button class="outline-btn" data-action="reload-enquiries">Refresh leads</button></div>'+table(["CUSTOMER","SERVICE","MESSAGE","RECEIVED","LEAD STATUS","CONTACT"],rows,"No enquiries received yet.")}
+ if(state.tab==="clients"){const rows=(d.clients||[]).map(x=>'<tr><td><b>'+esc(x.name)+'</b><small>'+esc(x.company||"")+'</small></td><td>'+esc(x.email||"—")+'</td><td>'+esc(x.phone||"—")+'</td><td>'+new Date(x.created_at).toLocaleDateString()+'</td></tr>');c.innerHTML='<div class="panel form-panel"><div class="panel-head"><div><p class="eyebrow">CLIENT DIRECTORY</p><h3>Add a client</h3></div></div><form data-form="client.create" class="form-grid"><input name="name" placeholder="Client name" required/><input name="email" type="email" placeholder="Email"/><input name="phone" placeholder="Phone / WhatsApp"/><input name="company" placeholder="Company"/><textarea name="notes" placeholder="Notes or contact history"></textarea><button class="primary-btn">Save client</button></form></div>'+table(["CLIENT","EMAIL","PHONE","ADDED"],rows,"No client records yet. Add a client above.") }
+ if(state.tab==="projects"){const rows=(d.projectRows||[]).map(x=>'<tr><td><b>'+esc(x.title)+'</b><small>'+esc(x.service||"")+'</small></td><td>'+esc(x.client_name||"Unassigned")+'</td><td><span class="pill">'+esc(x.status)+'</span></td><td><div class="mini-progress"><i style="width:'+Number(x.progress||0)+'%"></i></div>'+Number(x.progress||0)+'%</td><td>'+money(x.amount)+'</td><td>'+esc(x.deadline||"—")+'</td></tr>');c.innerHTML='<div class="panel form-panel"><div class="panel-head"><div><p class="eyebrow">PROJECT PIPELINE</p><h3>Create a project</h3></div></div><form data-form="project.create" class="form-grid"><input name="title" placeholder="Project title" required/><select name="clientId"><option value="">Select client (optional)</option>'+(d.clients||[]).map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join("")+'</select><input name="service" placeholder="Service type"/><input name="amount" type="number" min="0" step=".01" placeholder="Project amount (INR)"/><input name="deadline" type="date"/><input name="assignedTo" placeholder="Assigned team member"/><textarea name="description" placeholder="Project scope / notes"></textarea><button class="primary-btn">Create project</button></form></div>'+table(["PROJECT","CLIENT","STATUS","PROGRESS","VALUE","DEADLINE"],rows,"No projects created yet.") }
+ if(state.tab==="payments"){const rows=(d.paymentRows||[]).map(x=>'<tr><td>'+esc(x.project_title||"General payment")+'</td><td>'+esc(x.client_name||"—")+'</td><td><b>'+money(x.amount)+'</b></td><td>'+esc(x.payment_type)+'</td><td><span class="pill">'+esc(x.status)+'</span></td><td>'+esc(x.reference||"—")+'</td><td>'+new Date(x.created_at).toLocaleDateString()+'</td></tr>');c.innerHTML='<div class="panel form-panel"><div class="panel-head"><div><p class="eyebrow">PAYMENT LEDGER</p><h3>Record a payment</h3></div></div><form data-form="payment.create" class="form-grid"><select name="clientId"><option value="">Select client</option>'+(d.clients||[]).map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join("")+'</select><select name="projectId"><option value="">Select project</option>'+(d.projectRows||[]).map(x=>'<option value="'+x.id+'">'+esc(x.title)+'</option>').join("")+'</select><input name="amount" type="number" min=".01" step=".01" placeholder="Amount" required/><select name="paymentType"><option value="advance">Advance</option><option value="milestone">Milestone</option><option value="final">Final payment</option><option value="refund">Refund</option></select><select name="status"><option value="pending">Pending</option><option value="paid">Paid</option></select><input name="reference" placeholder="Transaction / invoice reference"/><button class="primary-btn">Save payment record</button></form></div>'+table(["PROJECT","CLIENT","AMOUNT","TYPE","STATUS","REFERENCE","DATE"],rows,"No payments recorded yet.") }
+ if(state.tab==="services"){const rows=(d.services||[]).map(x=>'<tr><td><b>'+esc(x.name)+'</b><small>'+esc(x.description)+'</small></td><td><form class="inline-form" data-form="service.update"><input type="hidden" name="id" value="'+x.id+'"/><span>₹</span><input name="price" type="number" min="0" step=".01" value="'+Number(x.price)+'"/><label><input type="checkbox" name="active" '+(x.active?"checked":"")+'/> Active</label><button class="outline-btn">Save</button></form></td></tr>');c.innerHTML='<p class="muted">Update the service catalogue and pricing stored in your studio database. These edits do not automatically change existing project contracts.</p>'+table(["SERVICE","DISPLAY PRICE / VISIBILITY"],rows,"No services configured.")}
+ if(state.tab==="automation"){c.innerHTML='<div class="welcome compact"><div><p class="eyebrow">CHANNEL CONNECTIONS</p><h2>Reach customers <em>where they are.</em></h2><p class="muted">Connections appear active only when the required provider credentials are configured.</p></div></div><div class="connection-grid">'+connectionCard("WhatsApp Business",d.integrations?.whatsapp,"Existing WhatsApp CRM and Meta Cloud API integration","/whatsapp.html","Open WhatsApp CRM")+connectionCard("Instagram",d.integrations?.instagram,"Requires Instagram professional account and Meta permissions")+connectionCard("Facebook",d.integrations?.facebook,"Requires Facebook Page access token and Page permissions")+'</div><div class="notice">Instagram and Facebook publishing/messaging are not enabled by a UI toggle alone. Provider credentials, Meta app permissions, webhook verification and approved use cases are required before live actions are available.</div>'}
+ if(state.tab==="campaigns"){const rows=(d.campaigns||[]).filter(x=>x.channel==="sms"||x.channel==="whatsapp").map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+esc(x.channel.toUpperCase())+'</td><td>'+esc(x.status)+'</td><td>'+Number(x.audience_count||0)+'</td><td>'+new Date(x.created_at).toLocaleDateString()+'</td></tr>');c.innerHTML='<div class="panel form-panel"><div class="panel-head"><div><p class="eyebrow">CAMPAIGN PLANNER</p><h3>Create campaign draft</h3></div></div><form data-form="campaign.create" class="form-grid"><input name="name" placeholder="Campaign name" required/><select name="channel"><option value="sms">Bulk SMS</option><option value="whatsapp">WhatsApp template campaign</option></select><button class="primary-btn">Save campaign draft</button></form><p class="muted small">Sending is disabled until an SMS provider or approved WhatsApp template, opt-in audience, sender registration and compliance checks are configured. Saving a draft does not send messages.</p></div>'+table(["CAMPAIGN","CHANNEL","STATUS","RECIPIENTS","CREATED"],rows,"No campaigns created yet.")}
+ if(state.tab==="aibot"){c.innerHTML='<div class="panel"><p class="eyebrow">AI CUSTOMER ASSISTANT</p><h3>AI Bot connection</h3><p class="muted">The admin workspace can show readiness, but the AI assistant must be connected to a model provider and configured with approved business knowledge before answering customers.</p>'+statusChip("AI model provider",d.integrations?.ai)+statusChip("Business knowledge base",false)+statusChip("Customer handoff workflow",false)+'<div class="notice">No AI replies are being sent automatically. Configure an AI provider key, approved prompt, knowledge sources, rate limits and human handoff before enabling customer-facing automation.</div></div>'}
+ if(state.tab==="webhosting"){const rows=(d.assets||[]).map(x=>'<tr><td>'+esc(x.asset_type)+'</td><td><b>'+esc(x.name)+'</b></td><td>'+esc(x.provider||"—")+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||"—")+'</td></tr>');c.innerHTML='<div class="stats two">'+stat("ACTIVE HOSTING / DOMAIN ASSETS",o.hostingAssets||0,"Tracked assets") + stat("ACTIVE PROJECTS",o.activeProjects||0,"Website and app delivery")+'</div><div class="panel"><p class="eyebrow">PROVIDER STATUS</p>'+statusChip("Hosting provider API",d.integrations?.hosting)+statusChip("Domain registrar API",d.integrations?.domains)+'<p class="muted">Website projects can be managed in Projects. Domain registration, DNS changes, hosting provisioning and renewals require connected provider APIs; no domain or hosting changes are executed from this screen yet.</p></div>'+table(["TYPE","ASSET","PROVIDER","STATUS","EXPIRY"],rows,"No hosting or domain assets recorded yet.")}
+ if(state.tab==="settings"){c.innerHTML='<div class="panel"><p class="eyebrow">ACCOUNT SECURITY</p><h3>Admin access</h3><p class="muted">Signed in as <b>'+esc($("admin-email").textContent)+'</b>.</p><p class="muted">Login is protected by the server-side admin session and login-attempt rate limit. Keep ADMIN_PASSWORD and ADMIN_SESSION_SECRET private and configure them in Vercel Production environment variables.</p><div class="notice">Audit history is recorded for supported client, project, payment, service and campaign actions. Password rotation and multi-admin roles are not exposed in this release; do not share this administrator login with staff.</div></div>'}
+ c.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.go)));
+ c.querySelectorAll("[data-form]").forEach(f=>f.addEventListener("submit",submitForm));
+ c.querySelectorAll("[data-enquiry]").forEach(el=>el.addEventListener("change",async()=>{try{await api("/api/admin/enquiries",{method:"PATCH",body:JSON.stringify({id:Number(el.dataset.enquiry),status:el.value})});toast("Lead status updated");}catch(e){toast(e.message,true);load()}}));
+ c.querySelectorAll("[data-action=reload-enquiries]").forEach(b=>b.onclick=load);
 }
-function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-function showToast(message, isError = false) {
-  const el = $("toast"); el.textContent = message; el.classList.toggle("toast-error", isError); el.classList.remove("hidden");
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add("hidden"), 3200);
-}
-function formatDate(value) {
-  const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString([], {year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
-}
-function showDashboard(email) {
-  login.classList.add("hidden"); dashboard.classList.remove("hidden"); $("admin-email").textContent = email;
-  $("footer-year").textContent = "© " + new Date().getFullYear(); loadEnquiries();
-}
-function buildServiceFilter() {
-  const select = $("service-filter"), current = select.value;
-  const services = [...new Set(allEnquiries.map(x => x.service).filter(Boolean))].sort();
-  select.innerHTML = '<option value="all">All services</option>' + services.map(s => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join("");
-  if (services.includes(current)) select.value = current;
-}
-function renderStats() {
-  const byStatus = summaryStats && summaryStats.byStatus;
-  $("total").textContent = summaryStats ? summaryStats.total : allEnquiries.length;
-  ["new","contacted","qualified","closed","spam"].forEach(s => {
-    const id = s === "new" ? "new-count" : s;
-    $(id).textContent = byStatus ? Number(byStatus[s] || 0) : allEnquiries.filter(x => x.status === s).length;
-  });
-}
-function contactActions(item) {
-  const email = String(item.email || ""), digits = String(item.phone || "").replace(/\D/g, "");
-  const mail = email ? '<a class="action-link" href="mailto:' + escapeHtml(email) + '?subject=' + encodeURIComponent("Your enquiry · AI SOFT STUDIO") + '">Email</a>' : "";
-  const whatsapp = digits ? '<a class="action-link" href="https://wa.me/' + digits + '" target="_blank" rel="noopener noreferrer">WhatsApp</a>' : "";
-  return mail + whatsapp || '<span class="muted">No contact</span>';
-}
-function filteredEnquiries() {
-  const q = $("search").value.trim().toLowerCase(), status = $("status-filter").value, service = $("service-filter").value;
-  return allEnquiries.filter(x => [x.name,x.email,x.phone,x.service,x.budget,x.message].join(" ").toLowerCase().includes(q) &&
-    (status === "all" || x.status === status) && (service === "all" || x.service === service));
-}
-function renderRows() {
-  const items = filteredEnquiries();
-  $("result-count").textContent = items.length + (items.length === 1 ? " enquiry" : " enquiries");
-  if (!items.length) { $("rows").innerHTML = '<tr><td colspan="6" class="empty">No enquiries match these filters.</td></tr>'; return; }
-  $("rows").innerHTML = items.map(x => {
-    const message = String(x.message || ""), preview = message.slice(0,100) + (message.length > 100 ? "…" : "");
-    const options = ["new","contacted","qualified","closed","spam"].map(s => '<option value="' + s + '" ' + (s === x.status ? "selected" : "") + '>' + s[0].toUpperCase() + s.slice(1) + '</option>').join("");
-    return '<tr><td class="customer-cell"><strong>' + escapeHtml(x.name) + '</strong><a href="mailto:' + escapeHtml(x.email) + '">' + escapeHtml(x.email) + '</a><small>' + escapeHtml(x.phone || "No phone provided") + '</small></td>' +
-      '<td><span class="service-name">' + escapeHtml(x.service || "Not specified") + '</span><small class="budget">' + escapeHtml(x.budget || "Budget not specified") + '</small></td>' +
-      '<td class="message-cell"><details><summary>' + escapeHtml(preview) + '</summary><p>' + escapeHtml(message) + '</p></details></td><td class="date-cell">' + escapeHtml(formatDate(x.created_at)) + '</td>' +
-      '<td><select class="status-select" data-id="' + Number(x.id) + '" aria-label="Enquiry status">' + options + '</select></td><td><div class="actions">' + contactActions(x) + '</div></td></tr>';
-  }).join("");
-  document.querySelectorAll(".status-select").forEach(el => el.addEventListener("change", async () => {
-    const item = allEnquiries.find(x => String(x.id) === el.dataset.id), previous = item && item.status, next = el.value; el.disabled = true;
-    try {
-      await api("/api/admin/enquiries", {method:"PATCH",body:JSON.stringify({id:Number(el.dataset.id),status:next})});
-      if (item) item.status = next;
-      if (summaryStats && summaryStats.byStatus) {
-        summaryStats.byStatus[previous] = Math.max(0, Number(summaryStats.byStatus[previous] || 0) - 1);
-        summaryStats.byStatus[next] = Number(summaryStats.byStatus[next] || 0) + 1;
-      }
-      renderStats(); renderRows(); showToast("Enquiry status updated.");
-    } catch (error) { showToast(error.message, true); if (previous) el.value = previous; }
-    finally { el.disabled = false; }
-  }));
-}
-async function loadEnquiries() {
-  $("refresh").disabled = true; $("rows").innerHTML = '<tr><td colspan="6" class="empty">Loading customer enquiries…</td></tr>';
-  try {
-    const result = await api("/api/admin/enquiries"); allEnquiries = Array.isArray(result.enquiries) ? result.enquiries : [];
-    summaryStats = result.stats || null;
-    buildServiceFilter(); renderStats(); renderRows(); $("last-updated").textContent = "Updated " + new Date().toLocaleTimeString();
-  } catch (error) { $("rows").innerHTML = '<tr><td colspan="6" class="empty error">' + escapeHtml(error.message) + '</td></tr>'; showToast(error.message, true); }
-  finally { $("refresh").disabled = false; }
-}
-$("login-form").addEventListener("submit", async event => {
-  event.preventDefault(); $("login-error").textContent = ""; $("login-submit").disabled = true;
-  const form = new FormData(event.currentTarget);
-  try { const result = await api("/api/admin/login", {method:"POST",body:JSON.stringify({email:form.get("email"),password:form.get("password")})}); event.currentTarget.reset(); showDashboard(result.email); }
-  catch (error) { $("login-error").textContent = error.message; }
-  finally { $("login-submit").disabled = false; }
-});
-$("logout").addEventListener("click", async () => {
-  try { await api("/api/admin/me",{method:"DELETE"}); } catch {}
-  allEnquiries = []; dashboard.classList.add("hidden"); login.classList.remove("hidden"); $("login-form").reset(); showToast("You have signed out.");
-});
-$("refresh").addEventListener("click", loadEnquiries);
-$("search").addEventListener("input", renderRows);
-$("status-filter").addEventListener("change", renderRows);
-$("service-filter").addEventListener("change", renderRows);
-$("clear-filters").addEventListener("click", () => { $("search").value = ""; $("status-filter").value = "all"; $("service-filter").value = "all"; renderRows(); });
-api("/api/admin/me").then(result => { if (result.authenticated) showDashboard(result.email); }).catch(() => {});
+function statusChip(name,ok){return '<div class="status-line"><span>'+name+'</span><b class="'+(ok?"ready":"pending")+'">'+(ok?"Connected":"Not configured")+'</b></div>'}
+function integrationList(i={}){return ["whatsapp","instagram","facebook","sms","ai"].map(k=>statusChip(k.toUpperCase(),i[k])).join("")}
+function connectionCard(name,ok,desc,url,action){return '<article class="connection-card"><div class="connection-top"><h3>'+name+'</h3><span class="pill '+(ok?"good":"")+'">'+(ok?"Connected":"Not configured")+'</span></div><p>'+desc+'</p>'+(url?'<a class="outline-btn" href="'+url+'">'+action+'</a>':'')+'</article>'}
+function switchTab(tab){state.tab=tab;document.querySelectorAll(".nav-item").forEach(x=>x.classList.toggle("active",x.dataset.tab===tab));render()}
+async function submitForm(e){e.preventDefault();const form=e.currentTarget,action=form.dataset.form,fd=new FormData(form),body=Object.fromEntries(fd.entries());if(form.querySelector('[name=active]'))body.active=fd.has("active");try{await api("/api/admin/workspace",{method:action==="service.update"?"PATCH":"POST",body:JSON.stringify({action,...body})});toast(action==="campaign.create"?"Campaign draft saved":"Changes saved");await load()}catch(err){toast(err.message,true)}}
+$("login-form").addEventListener("submit",async e=>{e.preventDefault();$("login-submit").disabled=true;$("login-error").textContent="";const fd=new FormData(e.currentTarget);try{const r=await api("/api/admin/login",{method:"POST",body:JSON.stringify({email:fd.get("email"),password:fd.get("password")})});$("login").classList.add("hidden");$("app").classList.remove("hidden");$("admin-email").textContent=r.email;$("year").textContent=new Date().getFullYear();await load()}catch(err){$("login-error").textContent=err.message}finally{$("login-submit").disabled=false}});
+$("logout").addEventListener("click",async()=>{try{await api("/api/admin/me",{method:"DELETE"})}catch{}$("app").classList.add("hidden");$("login").classList.remove("hidden");$("login-form").reset()});
+$("refresh").addEventListener("click",load);$("nav").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(b)switchTab(b.dataset.tab)});
+api("/api/admin/me").then(r=>{if(r.authenticated){$("login").classList.add("hidden");$("app").classList.remove("hidden");$("admin-email").textContent=r.email;$("year").textContent=new Date().getFullYear();load()}}).catch(()=>{});
