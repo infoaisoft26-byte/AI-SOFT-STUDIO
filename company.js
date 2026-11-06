@@ -63,7 +63,7 @@ async function launchWhatsAppSignup(){
   if(flowEvent==="CANCEL"||flowEvent==="ERROR")throw Error("Meta WhatsApp setup was not completed. Please retry and finish the Meta popup.");
   const wabaId=String(sessionInfo?.waba_id||sessionInfo?.wabaId||"");
   const phoneNumberId=String(sessionInfo?.phone_number_id||sessionInfo?.phoneNumberId||"");
-  if(!/^\\d{5,30}$/.test(wabaId)||flowEvent!=="FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING")
+  if(!/^\d{5,30}$/.test(wabaId)||flowEvent!=="FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING")
    throw Error("Meta did not confirm a completed WhatsApp Business App Coexistence setup. Please finish the full Meta flow and try again.");
   const result=await api("/api/company/whatsapp/connect",{method:"POST",body:JSON.stringify({code,wabaId,phoneNumberId,signupEvent:flowEvent})});
   $("connect-result").textContent=result.message||"WhatsApp account linked. Checking connection status…";
