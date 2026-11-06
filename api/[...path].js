@@ -38,7 +38,11 @@ const routes = new Map([
 
 export default async function handler(req, res) {
   const pathname = new URL(req.url || "/", "https://ai-soft-studio.invalid").pathname.replace(/\/+$/, "") || "/";
-  const route = routes.get(pathname);
-  if (!route) return res.status(404).json({ error: "API route not found." });
+  // Vercel catch-all invocations can expose the path with or without the /api prefix.
+  // Resolve both forms so nested admin endpoints never fall through to a false 404.
+  const withoutApiPrefix = pathname.replace(/^\/api(?=\/)/, "") || "/";
+  const withApiPrefix = pathname.startsWith("/api/") ? pathname : `/api${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+  const route = routes.get(pathname) || routes.get(withoutApiPrefix) || routes.get(withApiPrefix);
+  if (!route) return res.status(404).json({ error: "API route not found.", path: pathname });
   return route(req, res);
 }
