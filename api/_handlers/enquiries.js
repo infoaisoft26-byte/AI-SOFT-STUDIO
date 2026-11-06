@@ -1,5 +1,5 @@
-import { db, ensureSchema } from "./_lib/db.js";
-import { sendText, sendTemplate } from "./_lib/whatsapp.js";
+import { db, ensureSchema } from "../_lib/db.js";
+import { sendText, sendTemplate } from "../_lib/whatsapp.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
