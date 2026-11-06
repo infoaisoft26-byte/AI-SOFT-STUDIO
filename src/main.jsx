@@ -71,11 +71,20 @@ function EnquiryForm({ initialService = '' }) {
     const form = e.currentTarget;
     const data = Object.fromEntries(new FormData(form).entries());
     try {
-      const response = await fetch('/api/enquiries', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Submission failed');
-      form.reset(); setStatus('Your project brief has reached our studio. We will be in touch soon.');
-    } catch (error) { setStatus(error.message || 'Something went wrong. Please try again.'); }
+      const response = await fetch('/api/enquiries', { method:'POST', headers:{'Content-Type':'application/json', 'Accept':'application/json'}, body:JSON.stringify(data) });
+      const raw = await response.text();
+      let result = {};
+      try { result = raw ? JSON.parse(raw) : {}; } catch { result = {}; }
+      if (!response.ok) {
+        const message = typeof result.error === 'string' ? result.error : 'We could not send your enquiry right now. Please try again in a moment.';
+        throw new Error(message);
+      }
+      if (!result.ok) throw new Error('We could not confirm your enquiry. Please try again.');
+      form.reset(); setServiceValue(initialService); setStatus('Your project brief has reached our studio. We will be in touch soon.');
+    } catch (error) {
+      console.error('Secure enquiry submission failed:', error);
+      setStatus(error.message && !/JSON|Unexpected token|server error/i.test(error.message) ? error.message : 'We could not send your enquiry right now. Please try again or email hello@aisoftautomation.com.');
+    }
     finally { setBusy(false); }
   }
   return <form className="enquiry-form" onSubmit={submit}>
