@@ -6,6 +6,8 @@ import adminWhatsapp from "./_handlers/admin-whatsapp.js";
 import adminSaas from "./_handlers/admin-saas.js";
 import adminWorkspace from "./_handlers/admin-workspace.js";
 import companyAuth from "./_handlers/company-auth.js";
+import companyAiBots from "./_handlers/company-ai-bots.js";
+import aiChat from "./_handlers/ai-chat.js";
 import companyRegister from "./_handlers/company-register.js";
 import companySettings from "./_handlers/company-settings.js";
 import companyTeam from "./_handlers/company-team.js";
@@ -25,6 +27,8 @@ const routes = new Map([
   ["/api/admin/saas", adminSaas],
   ["/api/admin/workspace", adminWorkspace],
   ["/api/company/auth", companyAuth],
+  ["/api/company/ai-bots", companyAiBots],
+  ["/api/ai/chat", aiChat],
   ["/api/company/register", companyRegister],
   ["/api/company/settings", companySettings],
   ["/api/company/team", companyTeam],
