@@ -13,6 +13,7 @@ export default defineConfig({
         whatsapp: resolve(process.cwd(), 'whatsapp.html'),
         company: resolve(process.cwd(), 'company.html'),
         companies: resolve(process.cwd(), 'companies.html'),
+        aiBots: resolve(process.cwd(), 'ai-bots.html'),
       },
     },
   },
