@@ -35,6 +35,7 @@ async function loadInstagram(){
  try{
   const d=await api("/api/company/instagram");
   const connected=d.connection?.status==="connected";
+  if($("role").textContent==="OWNER"){try{const config=await api("/api/company/instagram/connect");$("connect-instagram").disabled=!config.enabled&&!connected;if(!config.enabled&&!connected)$("ig-connect-result").textContent=config.planEnabled?"Instagram Meta app credentials are not fully configured by the platform admin yet.":"Instagram is not included in your current plan.";}catch{}}
   $("ig-status").textContent=connected?"Connected":"Not connected";
   $("ig-username").textContent=connected?"@"+(d.connection.username||"Instagram account"):"";
   $("connect-instagram").textContent=connected?"Reconnect Instagram":"Connect Instagram";
