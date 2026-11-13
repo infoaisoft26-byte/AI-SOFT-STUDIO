@@ -10,18 +10,21 @@ export default async function handler(req,res) {
     if (!user) return;
     const sql=db(); await ensureCompanySchema(sql); await ensureSaasSchema(sql); await ensureInstagramSchema(sql);
     if (req.method==="GET") {
-      const [settings,connection] = await Promise.all([
+      const [settings,connection,entitlement] = await Promise.all([
         sql`SELECT meta_app_id FROM studio_saas_settings WHERE id=1 LIMIT 1`,
-        getInstagramConnection(sql,user.company_id)
+        getInstagramConnection(sql,user.company_id),
+        sql`SELECT c.status,COALESCE(p.instagram_enabled,FALSE) AS instagram_enabled FROM studio_companies c LEFT JOIN studio_saas_plans p ON p.plan_key=c.plan WHERE c.id=${user.company_id} LIMIT 1`
       ]);
       const appId = process.env.INSTAGRAM_APP_ID || settings[0]?.meta_app_id || "";
-      return res.status(200).json({enabled:Boolean(appId && process.env.META_APP_SECRET && process.env.META_TOKEN_ENCRYPTION_KEY),appId,redirectUri:instagramRedirectUri(req),scopes:IG_SCOPES,connection:connection||{status:"not_connected"}});
+      const planEnabled=entitlement[0]?.status==="trial"||entitlement[0]?.instagram_enabled===true;
+      return res.status(200).json({enabled:Boolean(planEnabled && appId && process.env.META_APP_SECRET && process.env.META_TOKEN_ENCRYPTION_KEY),planEnabled,appId,redirectUri:instagramRedirectUri(req),scopes:IG_SCOPES,connection:connection||{status:"not_connected"}});
     }
     if (req.method==="POST") {
       if(user.role!=="owner") return res.status(403).json({error:"Only the company owner can manage Instagram connection and automation settings."});
       const body=typeof req.body==="object"&&req.body?req.body:{};
       if(body.action==="connect") {
-        const [settings] = await Promise.all([sql`SELECT meta_app_id FROM studio_saas_settings WHERE id=1 LIMIT 1`]);
+        const [settings,entitlement] = await Promise.all([sql`SELECT meta_app_id FROM studio_saas_settings WHERE id=1 LIMIT 1`,sql`SELECT c.status,COALESCE(p.instagram_enabled,FALSE) AS instagram_enabled FROM studio_companies c LEFT JOIN studio_saas_plans p ON p.plan_key=c.plan WHERE c.id=${user.company_id} LIMIT 1`]);
+        if(entitlement[0]?.status!=="trial"&&!entitlement[0]?.instagram_enabled)return res.status(403).json({error:"Instagram is not included in your current plan. Please ask the platform admin to enable it for your plan."});
         const appId=process.env.INSTAGRAM_APP_ID || settings[0]?.meta_app_id || "";
         if(!appId||!process.env.META_APP_SECRET||!process.env.META_TOKEN_ENCRYPTION_KEY) return res.status(503).json({error:"Instagram Meta App ID, META_APP_SECRET, or META_TOKEN_ENCRYPTION_KEY is missing in Vercel."});
         const state=makeOAuthState(user.company_id);
