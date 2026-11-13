@@ -15,7 +15,7 @@ export default async function handler(req,res){
   const rows=await sql`UPDATE studio_instagram_oauth_states SET used_at=NOW() WHERE state_hash=${hashState(state)} AND company_id=${verified.companyId} AND used_at IS NULL AND expires_at>NOW() RETURNING company_id`;
   if(!rows.length)return finish(res,"This connection link has expired or has already been used. Please reconnect.");
   const appRows=await sql`SELECT meta_app_id FROM studio_saas_settings WHERE id=1 LIMIT 1`;
-  const appId=process.env.INSTAGRAM_APP_ID||appRows[0]?.meta_app_id||"",secret=process.env.META_APP_SECRET;
+  const appId=process.env.INSTAGRAM_APP_ID||appRows[0]?.meta_app_id||"",secret=(process.env.INSTAGRAM_APP_SECRET||process.env.META_APP_SECRET);
   if(!appId||!secret)return finish(res,"Instagram app credentials are not configured on the server.");
   const form=new URLSearchParams({client_id:appId,client_secret:secret,grant_type:"authorization_code",redirect_uri:instagramRedirectUri(req),code});
   const shortResponse=await fetch("https://api.instagram.com/oauth/access_token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:form});
