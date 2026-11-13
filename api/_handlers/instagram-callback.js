@@ -32,6 +32,12 @@ export default async function handler(req,res){
   await sql`INSERT INTO studio_company_instagram(company_id,ig_user_id,username,account_type,encrypted_access_token,token_expires_at,status,connected_at,updated_at)
     VALUES(${verified.companyId},${igId},${profile.username||null},${profile.account_type||null},${encryptCompanyToken(token)},NOW()+(${expiresIn} * INTERVAL '1 second'),'connected',NOW(),NOW())
     ON CONFLICT(company_id) DO UPDATE SET ig_user_id=EXCLUDED.ig_user_id,username=EXCLUDED.username,account_type=EXCLUDED.account_type,encrypted_access_token=EXCLUDED.encrypted_access_token,token_expires_at=EXCLUDED.token_expires_at,status='connected',connected_at=NOW(),updated_at=NOW()`;
-  return finish(res,"@" + (profile.username||"Instagram account") + " is now connected.",true);
+  let webhookSubscribed=false;
+  try{
+   const subscribe=await fetch("https://graph.instagram.com/v26.0/me/subscribed_apps",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({subscribed_fields:"messages,comments"})});
+   const subscribeData=await subscribe.json().catch(()=>({}));webhookSubscribed=subscribe.ok&&subscribeData.success!==false;
+  }catch(error){console.error("Instagram webhook subscription request failed:",error.message);}
+  await sql`UPDATE studio_company_instagram SET webhook_subscribed=${webhookSubscribed},updated_at=NOW() WHERE company_id=${verified.companyId}`;
+  return finish(res,"@" + (profile.username||"Instagram account") + " is connected. " + (webhookSubscribed?"Instagram message/comment webhook subscription was requested.":"Finish webhook subscriptions in the Meta App Dashboard before testing inbox events."),true);
  }catch(error){console.error("Instagram OAuth callback failed:",error.message);return finish(res,error.message||"Instagram connection failed.");}
 }
