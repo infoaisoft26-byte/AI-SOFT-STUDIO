@@ -6,7 +6,7 @@ import { ensureInstagramSchema, getInstagramConnection, instagramRedirectUri, ma
 export default async function handler(req,res) {
   res.setHeader("Cache-Control","no-store");
   try {
-    const user = await requireCompanyUser(req,res,["owner"]);
+    const user = await requireCompanyUser(req,res);
     if (!user) return;
     const sql=db(); await ensureCompanySchema(sql); await ensureSaasSchema(sql); await ensureInstagramSchema(sql);
     if (req.method==="GET") {
