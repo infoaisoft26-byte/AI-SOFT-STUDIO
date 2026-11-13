@@ -122,15 +122,24 @@ export function verifyOAuthState(state) {
   } catch { return null; }
 }
 export async function getInstagramConnection(sql, companyId) {
-  const rows = await sql`SELECT company_id,ig_user_id,username,account_type,status,token_expires_at,connected_at
+  const rows = await sql`SELECT company_id,ig_user_id,username,account_type,status,token_expires_at,webhook_subscribed,connected_at
     FROM studio_company_instagram WHERE company_id=${companyId} LIMIT 1`;
   return rows[0] || null;
 }
 export async function getInstagramToken(sql, companyId) {
-  const rows = await sql`SELECT ig_user_id,encrypted_access_token,status FROM studio_company_instagram
+  const rows = await sql`SELECT ig_user_id,encrypted_access_token,status,token_expires_at FROM studio_company_instagram
     WHERE company_id=${companyId} AND status='connected' LIMIT 1`;
   if (!rows[0]) return null;
-  return { igUserId: rows[0].ig_user_id, token: decryptCompanyToken(rows[0].encrypted_access_token) };
+  let token=decryptCompanyToken(rows[0].encrypted_access_token);
+  const expires=rows[0].token_expires_at?new Date(rows[0].token_expires_at).getTime():0;
+  if(expires && expires<Date.now()+7*24*60*60*1000){
+    try{
+      const url=new URL("https://graph.instagram.com/refresh_access_token");url.searchParams.set("grant_type","ig_refresh_token");url.searchParams.set("access_token",token);
+      const refreshed=await fetch(url);const data=await refreshed.json().catch(()=>({}));
+      if(refreshed.ok&&data.access_token){token=data.access_token;await sql`UPDATE studio_company_instagram SET encrypted_access_token=${encryptCompanyToken(token)},token_expires_at=NOW()+(${Number(data.expires_in)||5184000} * INTERVAL '1 second'),updated_at=NOW() WHERE company_id=${companyId}`;}
+    }catch(error){console.error("Instagram token refresh failed:",error.message);}
+  }
+  return { igUserId: rows[0].ig_user_id, token };
 }
 export async function sendInstagramText(igUserId, token, recipientId, text) {
   const response = await fetch(`https://graph.instagram.com/${IG_VERSION}/${igUserId}/messages`, {
