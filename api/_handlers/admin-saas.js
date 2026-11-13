@@ -94,10 +94,10 @@ export default async function handler(req,res){
    const key=String(body.planKey||"").toLowerCase().replace(/[^a-z0-9_-]/g,"").slice(0,40),name=String(body.name||"").trim().slice(0,80);
    const price=Number(body.price),messageQuota=Number(body.messageQuota),contactLimit=Number(body.contactLimit),teamLimit=Number(body.teamLimit),campaignLimit=Number(body.campaignLimit);
    if(!key||!name||![price,messageQuota,contactLimit,teamLimit,campaignLimit].every(Number.isFinite)||price<0||messageQuota<0||contactLimit<0||teamLimit<1||campaignLimit<0)return res.status(400).json({error:"Check plan name, price and quota values."});
-   const rows=await sql`INSERT INTO studio_saas_plans(plan_key,name,price,billing_period,message_quota,contact_limit,team_limit,campaign_limit,whatsapp_enabled,api_access,active,updated_at)
-    VALUES(${key},${name},${price},${String(body.billingPeriod||"monthly")},${messageQuota},${contactLimit},${teamLimit},${campaignLimit},${body.whatsappEnabled!==false},${body.apiAccess===true},${body.active!==false},NOW())
+   const rows=await sql`INSERT INTO studio_saas_plans(plan_key,name,price,billing_period,message_quota,contact_limit,team_limit,campaign_limit,whatsapp_enabled,instagram_enabled,api_access,active,updated_at)
+    VALUES(${key},${name},${price},${String(body.billingPeriod||"monthly")},${messageQuota},${contactLimit},${teamLimit},${campaignLimit},${body.whatsappEnabled!==false},${body.instagramEnabled===true},${body.apiAccess===true},${body.active!==false},NOW())
     ON CONFLICT(plan_key) DO UPDATE SET name=EXCLUDED.name,price=EXCLUDED.price,billing_period=EXCLUDED.billing_period,message_quota=EXCLUDED.message_quota,
-    contact_limit=EXCLUDED.contact_limit,team_limit=EXCLUDED.team_limit,campaign_limit=EXCLUDED.campaign_limit,whatsapp_enabled=EXCLUDED.whatsapp_enabled,
+    contact_limit=EXCLUDED.contact_limit,team_limit=EXCLUDED.team_limit,campaign_limit=EXCLUDED.campaign_limit,whatsapp_enabled=EXCLUDED.whatsapp_enabled,instagram_enabled=EXCLUDED.instagram_enabled,
     api_access=EXCLUDED.api_access,active=EXCLUDED.active,updated_at=NOW() RETURNING *`;
    await audit(sql,admin.email,"saas.plan.saved",rows[0].id);return res.status(200).json({ok:true,plan:rows[0]});
   }
