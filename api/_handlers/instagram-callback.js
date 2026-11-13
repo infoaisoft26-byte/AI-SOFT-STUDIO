@@ -24,11 +24,11 @@ export default async function handler(req,res){
   let token=shortData.access_token,expiresIn=Number(shortData.expires_in)||3600;
   const longUrl=new URL("https://graph.instagram.com/access_token");longUrl.searchParams.set("grant_type","ig_exchange_token");longUrl.searchParams.set("client_secret",secret);longUrl.searchParams.set("access_token",token);
   const longResponse=await fetch(longUrl);const longData=await longResponse.json().catch(()=>({}));
-  if(longResponse.ok&&longData.access_token){token=longData.access_token;expiresIn=Number(longData.expires_in)||5184000;}
+  if(!longResponse.ok||!longData.access_token)throw new Error(longData.error?.message||"Could not exchange the short-lived token for a long-lived Instagram token.");token=longData.access_token;expiresIn=Number(longData.expires_in)||5184000;
   const profileUrl=new URL("https://graph.instagram.com/me");profileUrl.searchParams.set("fields","user_id,username,account_type");profileUrl.searchParams.set("access_token",token);
   const profileResponse=await fetch(profileUrl);const profile=await profileResponse.json().catch(()=>({}));
   if(!profileResponse.ok||!(profile.user_id||profile.id))throw new Error(profile.error?.message||"Could not read Instagram professional account profile.");
-  const igId=String(profile.user_id||profile.id);
+  const accountType=String(profile.account_type||"").toUpperCase();if(accountType&&!["BUSINESS","CREATOR"].includes(accountType))throw new Error("Please connect an Instagram Business or Creator account, not a personal account.");\n  const igId=String(profile.user_id||profile.id);
   await sql`INSERT INTO studio_company_instagram(company_id,ig_user_id,username,account_type,encrypted_access_token,token_expires_at,status,connected_at,updated_at)
     VALUES(${verified.companyId},${igId},${profile.username||null},${profile.account_type||null},${encryptCompanyToken(token)},NOW()+(${expiresIn} * INTERVAL '1 second'),'connected',NOW(),NOW())
     ON CONFLICT(company_id) DO UPDATE SET ig_user_id=EXCLUDED.ig_user_id,username=EXCLUDED.username,account_type=EXCLUDED.account_type,encrypted_access_token=EXCLUDED.encrypted_access_token,token_expires_at=EXCLUDED.token_expires_at,status='connected',connected_at=NOW(),updated_at=NOW()`;
