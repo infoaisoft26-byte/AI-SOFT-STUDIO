@@ -2,10 +2,12 @@ import { requireAdmin } from "../_lib/auth.js";
 import { db } from "../_lib/db.js";
 import { ensureCompanySchema } from "../_lib/company.js";
 import { ensureSaasSchema } from "../_lib/saas-usage.js";
+import { ensureInstagramSchema } from "../_lib/instagram.js";
 
 async function init(sql){
  await ensureCompanySchema(sql);
  await ensureSaasSchema(sql);
+ await ensureInstagramSchema(sql);
  await sql`CREATE TABLE IF NOT EXISTS studio_saas_settings(
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK(id=1),signup_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   trial_hours INTEGER NOT NULL DEFAULT 24,trial_message_quota INTEGER NOT NULL DEFAULT 50,
@@ -63,10 +65,11 @@ export default async function handler(req,res){
     sql`SELECT date_trunc('day',created_at)::date AS day,COUNT(*)::int AS registrations FROM studio_companies WHERE created_at>=NOW()-INTERVAL '30 days' GROUP BY 1 ORDER BY 1`,
     sql`SELECT c.id,c.name AS company_name,x.template_name,x.status,x.total_count,x.sent_count,x.delivered_count,x.read_count,x.failed_count,x.created_at FROM studio_whatsapp_campaigns x JOIN studio_companies c ON c.id=x.company_id ORDER BY x.created_at DESC LIMIT 500`
    ]);
+   const instagramRows=await sql`SELECT (SELECT COUNT(*)::int FROM studio_company_instagram WHERE status='connected') AS connected,(SELECT COUNT(*)::int FROM studio_instagram_messages) AS messages,(SELECT COUNT(*)::int FROM studio_instagram_contacts) AS leads,(SELECT COUNT(*)::int FROM studio_instagram_comments) AS comments,(SELECT COUNT(*)::int FROM studio_instagram_publications) AS publications`;
    const statusCounts=Object.fromEntries(companies.map(x=>[x.status,(companies.filter(y=>y.status===x.status).length)]));
    const waCounts=Object.fromEntries(wa.map(x=>[x.status,Number(x.count)]));
    const msgCounts=Object.fromEntries(messages.map(x=>[x.direction+"_"+x.status,Number(x.count)]));
-   return res.status(200).json({settings:settings[0],metaSetup:{appSecretConfigured:Boolean(process.env.META_APP_SECRET),tokenEncryptionConfigured:Boolean(process.env.META_TOKEN_ENCRYPTION_KEY&&process.env.META_TOKEN_ENCRYPTION_KEY.length>=32),webhookVerifyConfigured:Boolean(process.env.WHATSAPP_VERIFY_TOKEN)},plans,companies,whatsapp:waCounts,messages:msgCounts,usage:usage[0],payments,registrations,campaigns,summary:{
+   return res.status(200).json({settings:settings[0],instagram:instagramRows[0]||{},metaSetup:{appSecretConfigured:Boolean(process.env.META_APP_SECRET),instagramAppSecretConfigured:Boolean(process.env.INSTAGRAM_APP_SECRET||process.env.META_APP_SECRET),tokenEncryptionConfigured:Boolean(process.env.META_TOKEN_ENCRYPTION_KEY&&process.env.META_TOKEN_ENCRYPTION_KEY.length>=32),webhookVerifyConfigured:Boolean(process.env.WHATSAPP_VERIFY_TOKEN),instagramVerifyConfigured:Boolean(process.env.INSTAGRAM_VERIFY_TOKEN),aiGatewayConfigured:Boolean(process.env.AI_GATEWAY_API_KEY)},plans,companies,whatsapp:waCounts,messages:msgCounts,usage:usage[0],payments,registrations,campaigns,summary:{
     totalCompanies:companies.length,activeCompanies:statusCounts.active||0,trialCompanies:statusCounts.trial||0,suspendedCompanies:statusCounts.suspended||0,
     connectedWhatsapp:waCounts.connected||0,notConnectedWhatsapp:companies.length-(waCounts.connected||0),
     totalMessages:Object.values(msgCounts).reduce((a,b)=>a+b,0),outboundMessages:msgCounts.outbound_sent||0,
@@ -92,10 +95,10 @@ export default async function handler(req,res){
    const key=String(body.planKey||"").toLowerCase().replace(/[^a-z0-9_-]/g,"").slice(0,40),name=String(body.name||"").trim().slice(0,80);
    const price=Number(body.price),messageQuota=Number(body.messageQuota),contactLimit=Number(body.contactLimit),teamLimit=Number(body.teamLimit),campaignLimit=Number(body.campaignLimit);
    if(!key||!name||![price,messageQuota,contactLimit,teamLimit,campaignLimit].every(Number.isFinite)||price<0||messageQuota<0||contactLimit<0||teamLimit<1||campaignLimit<0)return res.status(400).json({error:"Check plan name, price and quota values."});
-   const rows=await sql`INSERT INTO studio_saas_plans(plan_key,name,price,billing_period,message_quota,contact_limit,team_limit,campaign_limit,whatsapp_enabled,api_access,active,updated_at)
-    VALUES(${key},${name},${price},${String(body.billingPeriod||"monthly")},${messageQuota},${contactLimit},${teamLimit},${campaignLimit},${body.whatsappEnabled!==false},${body.apiAccess===true},${body.active!==false},NOW())
+   const rows=await sql`INSERT INTO studio_saas_plans(plan_key,name,price,billing_period,message_quota,contact_limit,team_limit,campaign_limit,whatsapp_enabled,instagram_enabled,api_access,active,updated_at)
+    VALUES(${key},${name},${price},${String(body.billingPeriod||"monthly")},${messageQuota},${contactLimit},${teamLimit},${campaignLimit},${body.whatsappEnabled!==false},${body.instagramEnabled===true},${body.apiAccess===true},${body.active!==false},NOW())
     ON CONFLICT(plan_key) DO UPDATE SET name=EXCLUDED.name,price=EXCLUDED.price,billing_period=EXCLUDED.billing_period,message_quota=EXCLUDED.message_quota,
-    contact_limit=EXCLUDED.contact_limit,team_limit=EXCLUDED.team_limit,campaign_limit=EXCLUDED.campaign_limit,whatsapp_enabled=EXCLUDED.whatsapp_enabled,
+    contact_limit=EXCLUDED.contact_limit,team_limit=EXCLUDED.team_limit,campaign_limit=EXCLUDED.campaign_limit,whatsapp_enabled=EXCLUDED.whatsapp_enabled,instagram_enabled=EXCLUDED.instagram_enabled,
     api_access=EXCLUDED.api_access,active=EXCLUDED.active,updated_at=NOW() RETURNING *`;
    await audit(sql,admin.email,"saas.plan.saved",rows[0].id);return res.status(200).json({ok:true,plan:rows[0]});
   }
