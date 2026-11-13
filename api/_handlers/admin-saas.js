@@ -2,10 +2,12 @@ import { requireAdmin } from "../_lib/auth.js";
 import { db } from "../_lib/db.js";
 import { ensureCompanySchema } from "../_lib/company.js";
 import { ensureSaasSchema } from "../_lib/saas-usage.js";
+import { ensureInstagramSchema } from "../_lib/instagram.js";
 
 async function init(sql){
  await ensureCompanySchema(sql);
  await ensureSaasSchema(sql);
+ await ensureInstagramSchema(sql);
  await sql`CREATE TABLE IF NOT EXISTS studio_saas_settings(
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK(id=1),signup_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   trial_hours INTEGER NOT NULL DEFAULT 24,trial_message_quota INTEGER NOT NULL DEFAULT 50,
