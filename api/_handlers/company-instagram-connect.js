@@ -17,7 +17,7 @@ export default async function handler(req,res) {
       ]);
       const appId = process.env.INSTAGRAM_APP_ID || settings[0]?.meta_app_id || "";
       const planEnabled=entitlement[0]?.status==="trial"||entitlement[0]?.instagram_enabled===true;
-      return res.status(200).json({enabled:Boolean(planEnabled && appId && process.env.META_APP_SECRET && process.env.META_TOKEN_ENCRYPTION_KEY),planEnabled,appId,redirectUri:instagramRedirectUri(req),scopes:IG_SCOPES,connection:connection||{status:"not_connected"}});
+      return res.status(200).json({enabled:Boolean(planEnabled && appId && (process.env.INSTAGRAM_APP_SECRET||process.env.META_APP_SECRET) && process.env.META_TOKEN_ENCRYPTION_KEY),planEnabled,appId,redirectUri:instagramRedirectUri(req),scopes:IG_SCOPES,connection:connection||{status:"not_connected"}});
     }
     if (req.method==="POST") {
       if(user.role!=="owner") return res.status(403).json({error:"Only the company owner can manage Instagram connection and automation settings."});
@@ -26,7 +26,7 @@ export default async function handler(req,res) {
         const [settings,entitlement] = await Promise.all([sql`SELECT meta_app_id FROM studio_saas_settings WHERE id=1 LIMIT 1`,sql`SELECT c.status,COALESCE(p.instagram_enabled,FALSE) AS instagram_enabled FROM studio_companies c LEFT JOIN studio_saas_plans p ON p.plan_key=c.plan WHERE c.id=${user.company_id} LIMIT 1`]);
         if(entitlement[0]?.status!=="trial"&&!entitlement[0]?.instagram_enabled)return res.status(403).json({error:"Instagram is not included in your current plan. Please ask the platform admin to enable it for your plan."});
         const appId=process.env.INSTAGRAM_APP_ID || settings[0]?.meta_app_id || "";
-        if(!appId||!process.env.META_APP_SECRET||!process.env.META_TOKEN_ENCRYPTION_KEY) return res.status(503).json({error:"Instagram Meta App ID, META_APP_SECRET, or META_TOKEN_ENCRYPTION_KEY is missing in Vercel."});
+        if(!appId||!(process.env.INSTAGRAM_APP_SECRET||process.env.META_APP_SECRET)||!process.env.META_TOKEN_ENCRYPTION_KEY) return res.status(503).json({error:"Instagram Meta App ID, META_APP_SECRET, or META_TOKEN_ENCRYPTION_KEY is missing in Vercel."});
         const state=makeOAuthState(user.company_id);
         await sql`INSERT INTO studio_instagram_oauth_states(state_hash,company_id,expires_at) VALUES(${state.hash},${user.company_id},NOW()+INTERVAL '10 minutes') ON CONFLICT(state_hash) DO UPDATE SET expires_at=EXCLUDED.expires_at,used_at=NULL`;
         const url=new URL("https://www.instagram.com/oauth/authorize");
