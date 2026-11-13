@@ -19,10 +19,16 @@ export default async function handler(req,res){
    return res.status(200).json({connection:connection[0]||{status:"not_connected"},contacts,messages,comments,settings:settings[0]||{auto_reply_enabled:false,ai_reply_enabled:false,comment_reply_enabled:false}});
   }
   if(req.method==="POST"){
+   const entitlement=await sql`SELECT c.status,COALESCE(p.instagram_enabled,FALSE) AS instagram_enabled FROM studio_companies c LEFT JOIN studio_saas_plans p ON p.plan_key=c.plan WHERE c.id=${user.company_id} LIMIT 1`;
+   if(entitlement[0]?.status!=="trial"&&!entitlement[0]?.instagram_enabled)return res.status(403).json({error:"Instagram is not included in your current plan."});
    const body=typeof req.body==="object"&&req.body?req.body:{};
    if(body.action==="reply"){
     const contactId=Number(body.contactId),message=String(body.text||"").trim();
     if(!Number.isSafeInteger(contactId)||contactId<1||!message||message.length>1000)return res.status(400).json({error:"Choose a contact and enter a message under 1,000 characters."});
+    const quotaRows=await sql`SELECT c.status,COALESCE(p.message_quota,0)::int AS plan_quota,s.trial_message_quota FROM studio_companies c LEFT JOIN studio_saas_plans p ON p.plan_key=c.plan CROSS JOIN studio_saas_settings s WHERE c.id=${user.company_id} AND s.id=1 LIMIT 1`;
+    const usageRows=await sql`SELECT COALESCE(SUM(quantity),0)::int AS used FROM studio_saas_usage WHERE company_id=${user.company_id} AND channel='instagram' AND created_at>=date_trunc('month',NOW())`;
+    const messageLimit=quotaRows[0]?.status==="trial"?Number(quotaRows[0]?.trial_message_quota||0):Number(quotaRows[0]?.plan_quota||0);
+    if(Number(usageRows[0]?.used||0)>=messageLimit)return res.status(429).json({error:"Your Instagram message quota is exhausted. Upgrade your plan to continue."});
     const token=await getInstagramToken(sql,user.company_id);if(!token)return res.status(409).json({error:"Connect an Instagram professional account first."});
     const contacts=await sql`SELECT id,ig_scoped_id FROM studio_instagram_contacts WHERE id=${contactId} AND company_id=${user.company_id} LIMIT 1`;
     if(!contacts.length)return res.status(404).json({error:"Instagram contact not found."});
