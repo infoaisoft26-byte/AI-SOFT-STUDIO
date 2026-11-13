@@ -65,10 +65,11 @@ export default async function handler(req,res){
     sql`SELECT date_trunc('day',created_at)::date AS day,COUNT(*)::int AS registrations FROM studio_companies WHERE created_at>=NOW()-INTERVAL '30 days' GROUP BY 1 ORDER BY 1`,
     sql`SELECT c.id,c.name AS company_name,x.template_name,x.status,x.total_count,x.sent_count,x.delivered_count,x.read_count,x.failed_count,x.created_at FROM studio_whatsapp_campaigns x JOIN studio_companies c ON c.id=x.company_id ORDER BY x.created_at DESC LIMIT 500`
    ]);
+   const instagramRows=await sql`SELECT (SELECT COUNT(*)::int FROM studio_company_instagram WHERE status='connected') AS connected,(SELECT COUNT(*)::int FROM studio_instagram_messages) AS messages,(SELECT COUNT(*)::int FROM studio_instagram_contacts) AS leads,(SELECT COUNT(*)::int FROM studio_instagram_comments) AS comments,(SELECT COUNT(*)::int FROM studio_instagram_publications) AS publications`;
    const statusCounts=Object.fromEntries(companies.map(x=>[x.status,(companies.filter(y=>y.status===x.status).length)]));
    const waCounts=Object.fromEntries(wa.map(x=>[x.status,Number(x.count)]));
    const msgCounts=Object.fromEntries(messages.map(x=>[x.direction+"_"+x.status,Number(x.count)]));
-   return res.status(200).json({settings:settings[0],metaSetup:{appSecretConfigured:Boolean(process.env.META_APP_SECRET),tokenEncryptionConfigured:Boolean(process.env.META_TOKEN_ENCRYPTION_KEY&&process.env.META_TOKEN_ENCRYPTION_KEY.length>=32),webhookVerifyConfigured:Boolean(process.env.WHATSAPP_VERIFY_TOKEN)},plans,companies,whatsapp:waCounts,messages:msgCounts,usage:usage[0],payments,registrations,campaigns,summary:{
+   return res.status(200).json({settings:settings[0],instagram:instagramRows[0]||{},metaSetup:{appSecretConfigured:Boolean(process.env.META_APP_SECRET),tokenEncryptionConfigured:Boolean(process.env.META_TOKEN_ENCRYPTION_KEY&&process.env.META_TOKEN_ENCRYPTION_KEY.length>=32),webhookVerifyConfigured:Boolean(process.env.WHATSAPP_VERIFY_TOKEN)},plans,companies,whatsapp:waCounts,messages:msgCounts,usage:usage[0],payments,registrations,campaigns,summary:{
     totalCompanies:companies.length,activeCompanies:statusCounts.active||0,trialCompanies:statusCounts.trial||0,suspendedCompanies:statusCounts.suspended||0,
     connectedWhatsapp:waCounts.connected||0,notConnectedWhatsapp:companies.length-(waCounts.connected||0),
     totalMessages:Object.values(msgCounts).reduce((a,b)=>a+b,0),outboundMessages:msgCounts.outbound_sent||0,
