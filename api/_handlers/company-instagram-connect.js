@@ -18,6 +18,7 @@ export default async function handler(req,res) {
       return res.status(200).json({enabled:Boolean(appId && process.env.META_APP_SECRET && process.env.META_TOKEN_ENCRYPTION_KEY),appId,redirectUri:instagramRedirectUri(req),scopes:IG_SCOPES,connection:connection||{status:"not_connected"}});
     }
     if (req.method==="POST") {
+      if(user.role!=="owner") return res.status(403).json({error:"Only the company owner can manage Instagram connection and automation settings."});
       const body=typeof req.body==="object"&&req.body?req.body:{};
       if(body.action==="connect") {
         const [settings] = await Promise.all([sql`SELECT meta_app_id FROM studio_saas_settings WHERE id=1 LIMIT 1`]);
