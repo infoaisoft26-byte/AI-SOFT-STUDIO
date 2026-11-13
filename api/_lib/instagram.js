@@ -24,6 +24,7 @@ export async function ensureInstagramSchema(sql = db()) {
     connected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`;
+  await sql`ALTER TABLE studio_company_instagram ADD COLUMN IF NOT EXISTS webhook_subscribed BOOLEAN NOT NULL DEFAULT FALSE`;
   await sql`CREATE TABLE IF NOT EXISTS studio_instagram_oauth_states (
     state_hash TEXT PRIMARY KEY,
     company_id BIGINT NOT NULL REFERENCES studio_companies(id) ON DELETE CASCADE,
